@@ -1,0 +1,17 @@
+{
+  "name": "andri-bot",
+  "version": "2.0.0",
+  "description": "Andri Bot — AI Auto-Reply dengan AI Lokal (build from zero) + Nemotron (guru)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "openai": "^4.73.0",
+    "socket.io-client": "^4.8.1",
+    "sql.js": "^1.11.0"
+  }
+}

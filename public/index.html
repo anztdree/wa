@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Andri Bot — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ────────────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --white:#ffffff;
+  --bg:#f0f2f5;
+  --card:#ffffff;
+  --border:#e2e8f0;
+  --text:#1e293b;
+  --text-secondary:#64748b;
+  --text-muted:#94a3b8;
+  --blue:#3b82f6;
+  --blue-light:#eff6ff;
+  --blue-border:#bfdbfe;
+  --teal:#14b8a6;
+  --teal-light:#f0fdfa;
+  --teal-border:#99f6e4;
+  --amber:#f59e0b;
+  --amber-light:#fffbeb;
+  --amber-border:#fde68a;
+  --red:#ef4444;
+  --red-light:#fef2f2;
+  --green:#22c55e;
+  --green-light:#f0fdf4;
+  --purple:#8b5cf6;
+  --purple-light:#f5f3ff;
+  --radius:12px;
+  --radius-sm:8px;
+  --shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.04);
+  --transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+html{font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+
+/* ── Layout Shell ───────────────────────────────────── */
+.shell{max-width:960px;margin:0 auto;padding:0 16px 40px}
+
+/* ── Top Header ────────────────────────────────────── */
+.header{
+  padding:20px 0 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{
+  width:36px;height:36px;border-radius:var(--radius-sm);
+  background:linear-gradient(135deg,var(--teal),var(--blue));
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 8px rgba(59,130,246,0.25);
+}
+.brand-icon svg{width:20px;height:20px;color:var(--white)}
+.brand h1{font-size:1.25rem;font-weight:700;letter-spacing:-0.01em;color:var(--text)}
+.brand-sub{font-size:0.75rem;color:var(--text-muted);font-weight:400;margin-left:8px}
+
+.header-right{display:flex;align-items:center;gap:12px}
+.status-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 14px;border-radius:100px;
+  font-size:0.8rem;font-weight:500;
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  transition:var(--transition);
+}
+.status-pill.connected{border-color:#bbf7d0;background:var(--green-light)}
+.status-pill.disconnected{border-color:#fecaca;background:var(--red-light)}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--red);
+  transition:var(--transition);
+  flex-shrink:0;
+}
+.status-pill.connected .status-dot{
+  background:var(--green);
+  box-shadow:0 0 0 3px rgba(34,197,94,0.2);
+  animation:pulse-dot 2s infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{box-shadow:0 0 0 3px rgba(34,197,94,0.2)}
+  50%{box-shadow:0 0 0 6px rgba(34,197,94,0.08)}
+}
+.status-label{white-space:nowrap}
+.last-refresh{font-size:0.7rem;color:var(--text-muted)}
+
+/* ── Tabs ───────────────────────────────────────────── */
+.tabs{
+  display:flex;gap:4px;
+  padding:4px;margin-bottom:20px;
+  background:var(--card);
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.tab{
+  flex:1;padding:10px 12px;text-align:center;
+  font-size:0.85rem;font-weight:500;
+  color:var(--text-secondary);
+  border-radius:var(--radius-sm);
+  cursor:pointer;transition:var(--transition);
+  user-select:none;
+}
+.tab:hover{color:var(--text);background:#f8fafc}
+.tab.active{
+  background:var(--text);
+  color:var(--white);
+  box-shadow:var(--shadow-md);
+}
+
+/* ── Panels ─────────────────────────────────────────── */
+.panel{display:none;animation:fadeIn 0.25s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  margin-bottom:16px;
+  overflow:hidden;
+  transition:var(--transition);
+}
+.card:hover{box-shadow:var(--shadow-md)}
+.card-header{
+  padding:14px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:#fafbfc;
+}
+.card-title{
+  font-size:0.8rem;font-weight:600;
+  color:var(--text-secondary);
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+.card-body{padding:18px}
+.card-action{
+  font-size:0.75rem;color:var(--blue);
+  cursor:pointer;font-weight:500;
+  padding:4px 10px;border-radius:6px;
+  transition:var(--transition);background:none;border:none;
+}
+.card-action:hover{background:var(--blue-light)}
+
+/* ── Stat Cards Grid ────────────────────────────────── */
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.stat-card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  box-shadow:var(--shadow);
+  border-left:4px solid var(--border);
+  transition:var(--transition);
+  position:relative;
+  overflow:hidden;
+}
+.stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.stat-card.blue{border-left-color:var(--blue)}
+.stat-card.teal{border-left-color:var(--teal)}
+.stat-card.amber{border-left-color:var(--amber)}
+.stat-card.purple{border-left-color:var(--purple)}
+.stat-icon{
+  width:36px;height:36px;border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:10px;
+}
+.stat-icon svg{width:18px;height:18px}
+.stat-card.blue .stat-icon{background:var(--blue-light);color:var(--blue)}
+.stat-card.teal .stat-icon{background:var(--teal-light);color:var(--teal)}
+.stat-card.amber .stat-icon{background:var(--amber-light);color:var(--amber)}
+.stat-card.purple .stat-icon{background:var(--purple-light);color:var(--purple)}
+.stat-value{font-size:1.6rem;font-weight:700;line-height:1.2;color:var(--text);letter-spacing:-0.02em}
+.stat-label{font-size:0.78rem;color:var(--text-secondary);margin-top:4px;font-weight:500}
+
+/* ── AI Section Mini Grid ───────────────────────────── */
+.ai-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+.ai-item{
+  text-align:center;
+  padding:14px 10px;
+  border-radius:var(--radius-sm);
+  background:var(--teal-light);
+  border:1px solid var(--teal-border);
+  transition:var(--transition);
+}
+.ai-item:hover{background:#e6fffa}
+.ai-value{font-size:1.2rem;font-weight:700;color:var(--teal)}
+.ai-label{font-size:0.72rem;color:var(--text-secondary);margin-top:3px;font-weight:500}
+
+/* ── Activity Feed ──────────────────────────────────── */
+.feed{max-height:440px;overflow-y:auto;padding:4px 2px}
+.feed::-webkit-scrollbar{width:5px}
+.feed::-webkit-scrollbar-track{background:transparent}
+.feed::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
+.feed-empty{text-align:center;padding:48px 20px;color:var(--text-muted);font-size:0.85rem}
+.feed-item{
+  display:flex;gap:10px;
+  padding:12px 0;
+  border-bottom:1px solid #f1f5f9;
+  transition:var(--transition);
+}
+.feed-item:last-child{border-bottom:none}
+.feed-item:hover{background:#f8fafc;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:var(--radius-sm)}
+.feed-avatar{
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.72rem;font-weight:700;flex-shrink:0;
+  text-transform:uppercase;
+}
+.feed-avatar.inbound{background:var(--blue-light);color:var(--blue)}
+.feed-avatar.outbound{background:var(--teal-light);color:var(--teal)}
+.feed-avatar.ai{background:var(--amber-light);color:var(--amber)}
+.feed-content{flex:1;min-width:0}
+.feed-top{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.feed-name{font-weight:600;font-size:0.82rem;color:var(--text)}
+.feed-dir-tag{
+  font-size:0.65rem;font-weight:600;
+  padding:1px 7px;border-radius:100px;
+  text-transform:uppercase;letter-spacing:0.03em;
+}
+.feed-dir-tag.inbound{background:var(--blue-light);color:var(--blue)}
+.feed-dir-tag.outbound{background:var(--teal-light);color:var(--teal)}
+.feed-dir-tag.ai{background:var(--amber-light);color:var(--amber)}
+.feed-body{font-size:0.85rem;color:var(--text);word-break:break-word;line-height:1.45}
+.feed-meta{font-size:0.7rem;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px}
+.feed-meta-dot{width:3px;height:3px;border-radius:50%;background:#d1d5db}
+
+/* ── Memory: Style Profile ─────────────────────────── */
+.style-section{margin-bottom:14px}
+.style-section:last-child{margin-bottom:0}
+.style-label{font-size:0.8rem;color:var(--text-secondary);margin-bottom:6px;font-weight:500}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:100px;overflow:hidden}
+.progress-fill{height:100%;border-radius:100px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)}
+.progress-fill.teal{background:linear-gradient(90deg,var(--teal),#2dd4bf)}
+.progress-fill.blue{background:linear-gradient(90deg,var(--blue),#60a5fa)}
+.style-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 0;border-bottom:1px solid #f1f5f9;
+  font-size:0.83rem;
+}
+.style-row:last-child{border-bottom:none}
+.style-key{color:var(--text-secondary)}
+.style-val{font-weight:600;color:var(--text)}
+
+/* ── Chips / Tags ───────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.chip{
+  font-size:0.72rem;font-weight:500;
+  padding:3px 10px;border-radius:100px;
+  background:var(--blue-light);color:var(--blue);
+  border:1px solid var(--blue-border);
+  white-space:nowrap;
+}
+
+/* ── Pattern Cards ──────────────────────────────────── */
+.pattern-list{display:flex;flex-direction:column;gap:10px}
+.pattern-item{
+  background:#fafbfc;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:14px;
+  transition:var(--transition);
+}
+.pattern-item:hover{background:var(--blue-light);border-color:var(--blue-border)}
+.pattern-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.pattern-intent{
+  font-size:0.75rem;font-weight:600;
+  padding:3px 10px;border-radius:6px;
+  background:var(--teal-light);color:var(--teal);
+  border:1px solid var(--teal-border);
+}
+.pattern-badges{display:flex;gap:6px;align-items:center}
+.pattern-badge{
+  font-size:0.68rem;font-weight:500;color:var(--text-muted);
+  padding:2px 8px;border-radius:100px;
+  background:var(--card);border:1px solid var(--border);
+}
+.pattern-response{font-size:0.85rem;color:var(--text);line-height:1.45;margin:8px 0 6px}
+.pattern-meta{font-size:0.7rem;color:var(--text-muted)}
+
+/* ── Nemotron Logs Table ────────────────────────────── */
+.logs-table{width:100%;border-collapse:collapse;font-size:0.82rem}
+.logs-table thead{position:sticky;top:0;background:#fafbfc}
+.logs-table th{
+  text-align:left;padding:10px 12px;
+  font-size:0.72rem;font-weight:600;
+  color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:0.04em;border-bottom:1px solid var(--border);
+}
+.logs-table td{
+  padding:10px 12px;border-bottom:1px solid #f1f5f9;
+  color:var(--text);vertical-align:top;
+}
+.logs-table tr:hover td{background:#f8fafc}
+.logs-table .log-type{
+  display:inline-block;
+  font-size:0.68rem;font-weight:600;
+  padding:2px 8px;border-radius:100px;
+  background:var(--purple-light);color:var(--purple);
+}
+.logs-empty{text-align:center;padding:32px 16px;color:var(--text-muted);font-size:0.85rem}
+
+/* ── Settings ──────────────────────────────────────── */
+.setting-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 0;border-bottom:1px solid #f1f5f9;gap:12px;
+}
+.setting-row:last-child{border-bottom:none}
+.setting-info{flex:1;min-width:0}
+.setting-label{font-size:0.88rem;font-weight:600;color:var(--text)}
+.setting-desc{font-size:0.78rem;color:var(--text-muted);margin-top:2px}
+.setting-value{
+  font-size:0.85rem;font-weight:600;color:var(--text);
+  text-align:right;white-space:nowrap;
+}
+
+/* Toggle Switch */
+.toggle{
+  position:relative;width:48px;height:26px;flex-shrink:0;
+  background:#cbd5e1;border-radius:100px;
+  cursor:pointer;transition:var(--transition);
+  border:none;outline:none;
+}
+.toggle.on{background:var(--teal)}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--white);
+  box-shadow:0 1px 3px rgba(0,0,0,0.15);
+  transition:var(--transition);
+}
+.toggle.on::after{left:25px}
+.toggle:hover{opacity:0.9}
+
+/* Range Slider */
+.slider-group{display:flex;align-items:center;gap:10px}
+.slider-track{position:relative;width:140px;height:6px;border-radius:100px;background:#e2e8f0}
+.slider-track input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:6px;border-radius:100px;
+  background:transparent;outline:none;cursor:pointer;
+  position:relative;z-index:2;
+}
+.slider-track input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--teal);border:3px solid var(--white);
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);
+  cursor:pointer;transition:var(--transition);
+}
+.slider-track input[type=range]::-webkit-slider-thumb:hover{
+  transform:scale(1.15);box-shadow:0 2px 8px rgba(20,184,166,0.3);
+}
+.slider-track input[type=range]::-moz-range-thumb{
+  width:20px;height:20px;border-radius:50%;
+  background:var(--teal);border:3px solid var(--white);
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);
+  cursor:pointer;
+}
+.slider-val{
+  font-size:0.85rem;font-weight:700;color:var(--teal);
+  min-width:38px;text-align:center;
+  padding:3px 8px;background:var(--teal-light);
+  border-radius:6px;
+}
+
+/* Connection badge */
+.conn-badge{
+  font-size:0.78rem;font-weight:600;
+  padding:4px 12px;border-radius:100px;
+}
+.conn-badge.ok{background:var(--green-light);color:var(--green);border:1px solid #bbf7d0}
+.conn-badge.off{background:var(--red-light);color:var(--red);border:1px solid #fecaca}
+
+/* ── Empty State ────────────────────────────────────── */
+.empty{text-align:center;padding:40px 20px;color:var(--text-muted);font-size:0.85rem}
+.empty svg{width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.4}
+
+/* ── Responsive ────────────────────────────────────── */
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .ai-grid{grid-template-columns:repeat(2,1fr)}
+  .header{padding:14px 0 12px}
+  .brand h1{font-size:1.1rem}
+  .brand-sub{display:none}
+  .tab{font-size:0.78rem;padding:9px 8px}
+  .stat-value{font-size:1.3rem}
+  .feed-avatar{width:30px;height:30px;font-size:0.65rem}
+  .slider-track{width:100px}
+  .logs-table{font-size:0.75rem}
+  .logs-table th,.logs-table td{padding:8px 8px}
+  .setting-row{flex-direction:column;align-items:flex-start;gap:8px}
+  .setting-value{text-align:left}
+}
+@media(max-width:380px){
+  .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .ai-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-card{padding:12px}
+  .stat-icon{width:30px;height:30px;margin-bottom:8px}
+  .stat-icon svg{width:15px;height:15px}
+  .stat-value{font-size:1.15rem}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div>
+        <h1>Andri Bot<span class="brand-sub">WhatsApp Auto-Reply</span></h1>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill disconnected" id="statusPill">
+        <div class="status-dot"></div>
+        <span class="status-label" id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="dashboard">Dashboard</div>
+    <div class="tab" data-tab="memory">Memory</div>
+    <div class="tab" data-tab="settings">Settings</div>
+  </div>
+
+  <!-- ════════ DASHBOARD ════════ -->
+  <div class="panel active" id="panel-dashboard">
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total Messages</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </div>
+        <div class="stat-value" id="statInbound">0</div>
+        <div class="stat-label">Inbound</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </div>
+        <div class="stat-value" id="statOutbound">0</div>
+        <div class="stat-label">Outbound</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <div class="stat-value" id="statAI">0</div>
+        <div class="stat-label">AI Replies</div>
+      </div>
+    </div>
+
+    <!-- AI Lokal Section -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">
+        <span class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          AI Lokal Engine
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="ai-grid">
+          <div class="ai-item">
+            <div class="ai-value" id="statPatterns">0</div>
+            <div class="ai-label">Patterns</div>
+          </div>
+          <div class="ai-item">
+            <div class="ai-value" id="statSamples">0</div>
+            <div class="ai-label">Style Samples</div>
+          </div>
+          <div class="ai-item">
+            <div class="ai-value" id="statNemotron">0</div>
+            <div class="ai-label">Nemotron Calls</div>
+          </div>
+          <div class="ai-item">
+            <div class="ai-value" id="statThreshold">70%</div>
+            <div class="ai-label">Threshold</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Activity Feed</span>
+        <button class="card-action" onclick="refreshFeed()">Refresh</button>
+      </div>
+      <div class="card-body" style="padding:8px 14px">
+        <div class="feed" id="feed">
+          <div class="feed-empty">No activity yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ MEMORY ════════ -->
+  <div class="panel" id="panel-memory">
+
+    <!-- Style Profile -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Style Profile</span>
+        <button class="card-action" onclick="refreshStyle()">Refresh</button>
+      </div>
+      <div class="card-body" id="styleProfile">
+        <div class="empty">No style data yet</div>
+      </div>
+    </div>
+
+    <!-- Patterns -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Learned Patterns</span>
+        <button class="card-action" onclick="refreshPatterns()">Refresh</button>
+      </div>
+      <div class="card-body">
+        <div class="pattern-list" id="patternList">
+          <div class="empty">No patterns learned yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nemotron Logs -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Nemotron Logs</span>
+        <button class="card-action" onclick="refreshNemotronLogs()">Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <div id="nemotronLogs">
+          <div class="logs-empty">No Nemotron calls recorded</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ SETTINGS ════════ -->
+  <div class="panel" id="panel-settings">
+
+    <!-- Connection Info -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Connection</span>
+      </div>
+      <div class="card-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">WhatsApp Session</div>
+            <div class="setting-desc" id="openwaStatus">Checking status...</div>
+          </div>
+          <div class="conn-badge off" id="connBadge">Offline</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Session ID</div>
+            <div class="setting-desc">Active WhatsApp session identifier</div>
+          </div>
+          <div class="setting-value" id="openwaSession">--</div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Owner Number</div>
+            <div class="setting-desc">Authorized bot owner phone number</div>
+          </div>
+          <div class="setting-value" id="ownerPhone">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Settings -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">AI Settings</span>
+      </div>
+      <div class="card-body">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Auto-Reply</div>
+            <div class="setting-desc">Automatically reply to matched messages</div>
+          </div>
+          <button class="toggle" id="toggleAutoReply" onclick="toggleSetting('autoReply')" aria-label="Toggle auto-reply"></button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Confidence Threshold</div>
+            <div class="setting-desc" id="thresholdDesc">Minimum match confidence: 70%</div>
+          </div>
+          <div class="slider-group">
+            <div class="slider-track">
+              <input type="range" id="thresholdRange" min="30" max="95" value="70" oninput="updateThreshold(this.value)">
+            </div>
+            <div class="slider-val" id="thresholdVal">70%</div>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label">Nemotron AI</div>
+            <div class="setting-desc" id="nemotronStatusDesc">NVIDIA Nemotron model for complex queries</div>
+          </div>
+          <div class="setting-value" id="nemotronCalls">0 calls</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="card" style="border-color:#fecaca">
+      <div class="card-header" style="background:#fef2f2;border-bottom-color:#fecaca">
+        <span class="card-title" style="color:var(--red)">Danger Zone</span>
+      </div>
+      <div class="card-body">
+        <div class="setting-row" style="border:none;padding-bottom:0">
+          <div class="setting-info">
+            <div class="setting-label">Reset Learned Data</div>
+            <div class="setting-desc">Clear all patterns, style samples, and Nemotron history</div>
+          </div>
+          <button class="card-action" style="color:var(--red);border:1px solid #fecaca;padding:6px 14px;border-radius:var(--radius-sm)" onclick="alert('This action is not yet implemented via API')">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+const API = '';
+let autoReplyEnabled = true;
+let currentThreshold = 70;
+
+/* ── Tab Switching ──────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const panel = document.getElementById('panel-' + tab.dataset.tab);
+    panel.classList.add('active');
+    /* Lazy-load memory data when switching to Memory tab */
+    if (tab.dataset.tab === 'memory') {
+      refreshStyle();
+      refreshPatterns();
+      refreshNemotronLogs();
+    }
+  });
+});
+
+/* ── Fetch Status ───────────────────────────────────── */
+async function fetchStatus() {
+  try {
+    const r = await fetch(API + '/api/status');
+    if (!r.ok) throw new Error(r.statusText);
+    const d = await r.json();
+
+    /* Header status pill */
+    const pill = document.getElementById('statusPill');
+    const dot = pill.querySelector('.status-dot');
+    const label = document.getElementById('statusText');
+    if (d.connected) {
+      pill.className = 'status-pill connected';
+      label.textContent = 'Connected';
+    } else {
+      pill.className = 'status-pill disconnected';
+      label.textContent = 'Disconnected';
+    }
+
+    /* Stats */
+    animateNumber('statTotal', d.messages.total);
+    animateNumber('statInbound', d.messages.inbound);
+    animateNumber('statOutbound', d.messages.outbound);
+    animateNumber('statAI', d.messages.aiReplies);
+    animateNumber('statPatterns', d.ai.patternCount);
+    animateNumber('statSamples', d.ai.styleSamples);
+    animateNumber('statNemotron', d.nemotron);
+    document.getElementById('statThreshold').textContent = currentThreshold + '%';
+
+    /* Settings page */
+    document.getElementById('openwaStatus').textContent = d.connected ? 'Connected and active' : 'Not connected';
+    document.getElementById('openwaSession').textContent = d.session || '--';
+    document.getElementById('ownerPhone').textContent = d.owner || '--';
+    const badge = document.getElementById('connBadge');
+    if (d.connected) {
+      badge.className = 'conn-badge ok';
+      badge.textContent = 'Online';
+    } else {
+      badge.className = 'conn-badge off';
+      badge.textContent = 'Offline';
+    }
+    document.getElementById('nemotronStatusDesc').textContent = d.nemotron > 0
+      ? 'Active — ' + d.nemotron + ' total calls'
+      : 'No calls recorded yet';
+    document.getElementById('nemotronCalls').textContent = d.nemotron + ' calls';
+
+    autoReplyEnabled = d.autoReply;
+    const toggle = document.getElementById('toggleAutoReply');
+    toggle.className = 'toggle' + (autoReplyEnabled ? ' on' : '');
+    toggle.setAttribute('aria-checked', autoReplyEnabled);
+  } catch(e) {
+    console.warn('Status fetch failed:', e);
+  }
+}
+
+/* Smooth number animation */
+function animateNumber(id, target) {
+  const el = document.getElementById(id);
+  const current = parseInt(el.textContent) || 0;
+  if (current === target) return;
+  const diff = target - current;
+  const steps = Math.min(Math.abs(diff), 15);
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    const progress = step / steps;
+    const value = Math.round(current + diff * progress);
+    el.textContent = value.toLocaleString('id-ID');
+    if (step >= steps) {
+      el.textContent = target.toLocaleString('id-ID');
+      clearInterval(interval);
+    }
+  }, 30);
+}
+
+/* ── Activity Feed ──────────────────────────────────── */
+async function refreshFeed() {
+  try {
+    const r = await fetch(API + '/api/messages/recent?limit=30');
+    if (!r.ok) throw new Error(r.statusText);
+    const msgs = await r.json();
+    const el = document.getElementById('feed');
+    if (!msgs.length) { el.innerHTML = '<div class="feed-empty">No activity yet</div>'; return; }
+
+    el.innerHTML = msgs.map(m => {
+      const dir = m.direction;
+      const isAI = dir === 'outbound' && m.source === 'ai';
+      const dirClass = isAI ? 'ai' : (dir === 'inbound' ? 'inbound' : 'outbound');
+      const dirLabel = dir === 'inbound' ? 'IN' : (isAI ? 'AI' : 'OUT');
+      const name = dir === 'inbound'
+        ? (m.sender_name || m.sender_id)
+        : (isAI ? 'AI Lokal' : 'Owner');
+      const initials = name.substring(0, 2).replace(/[^a-zA-Z]/g, '').toUpperCase() || '??';
+      const time = new Date(m.timestamp * 1000).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',hour12:false});
+      const dateStr = new Date(m.timestamp * 1000).toLocaleDateString('id-ID', {day:'numeric',month:'short'});
+
+      return '<div class="feed-item">' +
+        '<div class="feed-avatar ' + dirClass + '">' + esc(initials) + '</div>' +
+        '<div class="feed-content">' +
+          '<div class="feed-top">' +
+            '<span class="feed-name">' + esc(name) + '</span>' +
+            '<span class="feed-dir-tag ' + dirClass + '">' + dirLabel + '</span>' +
+          '</div>' +
+          '<div class="feed-body">' + esc(m.body) + '</div>' +
+          '<div class="feed-meta">' +
+            '<span>' + time + '</span>' +
+            '<span class="feed-meta-dot"></span>' +
+            '<span>' + dateStr + '</span>' +
+            (m.is_group ? '<span class="feed-meta-dot"></span><span>Group</span>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('Feed fetch failed:', e);
+  }
+}
+
+/* ── Style Profile ─────────────────────────────────── */
+async function refreshStyle() {
+  try {
+    const r = await fetch(API + '/api/style');
+    if (!r.ok) throw new Error(r.statusText);
+    const s = await r.json();
+    const el = document.getElementById('styleProfile');
+    if (!s || !s.sample_count) { el.innerHTML = '<div class="empty">No style data yet</div>'; return; }
+
+    const formalPct = Math.min(100, Math.round(s.formality_score * 100));
+    const avgLenPct = Math.min(100, Math.round((s.avg_sentence_length / 20) * 100));
+
+    const abbreviations = Object.entries(s.common_abbreviations || {});
+    const emojis = Object.entries(s.emoji_patterns || {});
+    const slang = Object.entries(s.slang_words || {});
+
+    el.innerHTML =
+      /* Formality Score */
+      '<div class="style-section">' +
+        '<div class="style-label">Formality Score — ' + s.formality_score.toFixed(2) + '</div>' +
+        '<div class="progress-bar"><div class="progress-fill teal" style="width:' + formalPct + '%"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.7rem;color:var(--text-muted)"><span>Casual</span><span>Formal</span></div>' +
+      '</div>' +
+      /* Avg Sentence Length */
+      '<div class="style-section">' +
+        '<div class="style-label">Average Sentence Length — ' + s.avg_sentence_length + ' words</div>' +
+        '<div class="progress-bar"><div class="progress-fill blue" style="width:' + avgLenPct + '%"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.7rem;color:var(--text-muted)"><span>Short</span><span>Long</span></div>' +
+      '</div>' +
+      /* Detail rows */
+      '<div class="style-row"><span class="style-key">Total Samples</span><span class="style-val">' + s.sample_count + '</span></div>' +
+      '<div class="style-row"><span class="style-key">Last Updated</span><span class="style-val">' + (s.last_updated ? new Date(s.last_updated).toLocaleString('id-ID') : '--') + '</span></div>' +
+      /* Abbreviations */
+      (abbreviations.length ? (
+        '<div style="padding:10px 0">' +
+          '<div class="style-label">Common Abbreviations</div>' +
+          '<div class="chips">' + abbreviations.map(([k,v]) => '<span class="chip">' + esc(k) + ' &rarr; ' + esc(v) + '</span>').join('') + '</div>' +
+        '</div>'
+      ) : '') +
+      /* Emojis */
+      (emojis.length ? (
+        '<div style="padding:10px 0">' +
+          '<div class="style-label">Emoji Patterns</div>' +
+          '<div class="chips">' + emojis.map(([k,v]) => '<span class="chip">' + esc(k) + ' (' + esc(v) + ')</span>').join('') + '</div>' +
+        '</div>'
+      ) : '') +
+      /* Slang */
+      (slang.length ? (
+        '<div style="padding:10px 0">' +
+          '<div class="style-label">Slang Words</div>' +
+          '<div class="chips">' + slang.map(([k,v]) => '<span class="chip">' + esc(k) + ' &rarr; ' + esc(v) + '</span>').join('') + '</div>' +
+        '</div>'
+      ) : '');
+  } catch(e) {
+    console.warn('Style fetch failed:', e);
+  }
+}
+
+/* ── Patterns ────────────────────────────────────────── */
+async function refreshPatterns() {
+  try {
+    const r = await fetch(API + '/api/patterns');
+    if (!r.ok) throw new Error(r.statusText);
+    const patterns = await r.json();
+    const el = document.getElementById('patternList');
+    if (!patterns.length) { el.innerHTML = '<div class="empty">No patterns learned yet</div>'; return; }
+
+    el.innerHTML = patterns.map(p => {
+      const time = p.created_at ? new Date(p.created_at * 1000).toLocaleDateString('id-ID', {day:'numeric',month:'short',year:'numeric'}) : '--';
+      const confColor = p.confidence >= 80 ? 'var(--teal)' : (p.confidence >= 60 ? 'var(--amber)' : 'var(--red)');
+      return '<div class="pattern-item">' +
+        '<div class="pattern-header">' +
+          '<span class="pattern-intent">' + esc(p.intent) + '</span>' +
+          '<div class="pattern-badges">' +
+            '<span class="pattern-badge" style="color:' + confColor + '">' + p.confidence + '% conf</span>' +
+            '<span class="pattern-badge">' + p.usage_count + ' uses</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="chips">' + (p.keywords || []).map(k => '<span class="chip">' + esc(k) + '</span>').join('') + '</div>' +
+        '<div class="pattern-response">' + esc(p.response_template) + '</div>' +
+        '<div class="pattern-meta">' + esc(p.source) + ' &middot; ' + time + (p.success_count ? ' &middot; ' + p.success_count + ' success' : '') + '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    console.warn('Patterns fetch failed:', e);
+  }
+}
+
+/* ── Nemotron Logs ───────────────────────────────────── */
+async function refreshNemotronLogs() {
+  try {
+    const r = await fetch(API + '/api/nemotron-logs');
+    if (!r.ok) throw new Error(r.statusText);
+    const logs = await r.json();
+    const el = document.getElementById('nemotronLogs');
+    if (!logs.length) { el.innerHTML = '<div class="logs-empty">No Nemotron calls recorded</div>'; return; }
+
+    el.innerHTML = '<table class="logs-table">' +
+      '<thead><tr>' +
+        '<th style="width:100px">Type</th>' +
+        '<th>Input Summary</th>' +
+        '<th>Response Summary</th>' +
+        '<th style="width:100px">Time</th>' +
+      '</tr></thead><tbody>' +
+      logs.map(l => {
+        const time = l.timestamp ? new Date(l.timestamp * 1000).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',hour12:false}) : '--';
+        return '<tr>' +
+          '<td><span class="log-type">' + esc(l.request_type) + '</span></td>' +
+          '<td>' + esc(l.input_summary) + '</td>' +
+          '<td>' + esc(l.response_summary) + '</td>' +
+          '<td style="white-space:nowrap">' + time + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  } catch(e) {
+    console.warn('Nemotron logs fetch failed:', e);
+  }
+}
+
+/* ── Settings Actions ───────────────────────────────── */
+async function toggleSetting(type) {
+  autoReplyEnabled = !autoReplyEnabled;
+  const toggle = document.getElementById('toggleAutoReply');
+  toggle.className = 'toggle' + (autoReplyEnabled ? ' on' : '');
+  toggle.setAttribute('aria-checked', autoReplyEnabled);
+  try {
+    await fetch(API + '/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ autoReplyEnabled })
+    });
+  } catch(e) {
+    /* Revert on failure */
+    autoReplyEnabled = !autoReplyEnabled;
+    toggle.className = 'toggle' + (autoReplyEnabled ? ' on' : '');
+  }
+}
+
+async function updateThreshold(val) {
+  const v = parseInt(val);
+  currentThreshold = v;
+  document.getElementById('thresholdVal').textContent = v + '%';
+  document.getElementById('thresholdDesc').textContent = 'Minimum match confidence: ' + v + '%';
+  document.getElementById('statThreshold').textContent = v + '%';
+  try {
+    await fetch(API + '/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ confidenceThreshold: v })
+    });
+  } catch(e) {}
+}
+
+/* ── Utility ─────────────────────────────────────────── */
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+/* ── Init & Auto-Refresh ─────────────────────────────── */
+fetchStatus().then(() => {
+  refreshFeed();
+});
+setInterval(fetchStatus, 5000);
+setInterval(refreshFeed, 10000);
+</script>
+</body>
+</html>
