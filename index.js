@@ -41,7 +41,8 @@ app.get('/api/style', (req, res) => {
 });
 
 app.get('/api/nemotron-logs', (req, res) => {
-  const results = db.db ? db.db.exec('SELECT id, request_type, input_summary, response_summary, timestamp FROM nemotron_logs ORDER BY id DESC LIMIT 20') : [];
+  const dbHandle = db.getDb();
+  const results = dbHandle ? dbHandle.exec('SELECT id, request_type, input_summary, response_summary, timestamp FROM nemotron_logs ORDER BY id DESC LIMIT 20') : [];
   if (!results || !results.length) return res.json([]);
   const [ids, types, inputs, outputs, times] = results;
   res.json(ids[0].map((_, i) => ({
@@ -66,112 +67,194 @@ app.post('/api/settings', (req, res) => {
   const { confidenceThreshold, autoReplyEnabled } = req.body;
   if (typeof confidenceThreshold === 'number') config.ai.confidenceThreshold = confidenceThreshold;
   if (typeof autoReplyEnabled === 'boolean') config.ai.autoReplyEnabled = autoReplyEnabled;
-  log.sys('⚙️  Settings updated → threshold: ' + config.ai.confidenceThreshold + '% | auto-reply: ' + (config.ai.autoReplyEnabled ? 'ON' : 'OFF'));
+  log.sys('⚙️  Settings diubah → threshold: ' + config.ai.confidenceThreshold + '% │ auto-reply: ' + (config.ai.autoReplyEnabled ? 'ON ✅' : 'OFF ❌'));
   res.json({ ok: true });
 });
 
 // SPA fallback
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+// ═══════════════════════════════════════════════════════
+// 🔁 AUTO-RECONNECT — cek OpenWA tiap 3 detik
+// ═══════════════════════════════════════════════════════
+var reconnectTimer = null;
+var reconnectAttempts = 0;
+var reconnectStart = null;
+var errorCount = 0;
+
+function setupCallbacks() {
+  openwa.onMessage(function(data) {
+    if (config.ai.autoReplyEnabled) {
+      listener.handleMessage(data);
+    }
+  });
+  openwa.onStatus(function(status) {
+    if (status.statusEvent) {
+      var s = status.statusEvent.status || 'unknown';
+      var sid = (status.sessionId || '').slice(0, 8) + '...';
+      var icons = {
+        initializing: '⏳', authenticating: '🔐', syncing: '📸',
+        ready: '✅', connected: '✅', disconnected: '⚠️ ',
+      };
+      var extra = '';
+      if ((s === 'ready' || s === 'connected') && openwa.getOwnerPhone()) {
+        extra = ' │ 📞 ' + openwa.getOwnerPhone();
+      }
+      log.openwa((icons[s] || '❓') + ' ' + s + ' │ ' + sid + extra);
+    }
+  });
+}
+
+function startAutoReconnect() {
+  if (reconnectTimer) return;
+  reconnectStart = Date.now();
+  log.info('🔁 Auto-reconnect aktif → cek tiap 3 detik');
+
+  reconnectTimer = setInterval(async function() {
+    // Sudah connected? Berhenti
+    if (openwa.isConnected() && openwa.getSessionId()) {
+      var sec = Math.round((Date.now() - reconnectStart) / 1000);
+      log.ok('📱 TERHUBUNG setelah ' + sec + 's │ ' + reconnectAttempts + ' coba');
+      clearInterval(reconnectTimer);
+      reconnectTimer = null;
+      reconnectAttempts = 0;
+      return;
+    }
+
+    // Silent — cek koneksi tanpa print. Activity feed yang menampilkan status.
+    reconnectAttempts++;
+
+    var ok = await openwa.initSession(true);
+    if (ok) {
+      openwa.connectSocket();
+      setupCallbacks();
+      var sec2 = Math.round((Date.now() - reconnectStart) / 1000);
+      log.ok('📱 TERHUBUNG setelah ' + sec2 + 's │ ' + reconnectAttempts + ' coba');
+      clearInterval(reconnectTimer);
+      reconnectTimer = null;
+      reconnectAttempts = 0;
+    }
+  }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// 🔍 ACTIVITY FEED — tiap 5 detik
+// ═══════════════════════════════════════════════════════
+var actLast = { in: 0, out: 0, nemo: 0, pattern: 0, grp: 0, vid: 0, me: 0, err: 0 };
+
+function startActivityFeed(ms) {
+  setInterval(function() {
+    var stats = db.getMessageStats();
+    var aiStats = ai.getStats();
+    var skips = listener.getSkipCounters();
+    var nemoCount = nemotron.getCallCount();
+
+    var dIn = stats.inbound - actLast.in;
+    var dOut = stats.outbound - actLast.out;
+    var dNemo = nemoCount - actLast.nemo;
+    var dPattern = aiStats.patternCount - actLast.pattern;
+    var dGrp = skips.group - actLast.grp;
+    var dVid = skips.nonText - actLast.vid;
+    var dMe = skips.fromMe - actLast.me;
+    var dErr = errorCount - actLast.err;
+
+    var idle = (dIn === 0 && dOut === 0 && dGrp === 0 && dVid === 0 && dMe === 0);
+
+    log.activity({
+      idle: idle,
+      deltaIn: dIn, deltaOut: dOut,
+      deltaNemotron: dNemo, deltaPattern: dPattern,
+      deltaErrors: dErr,
+      deltaGroup: dGrp, deltaNonText: dVid, deltaFromMe: dMe,
+      reconnectCount: reconnectAttempts,
+      openwaStatus: openwa.isConnected() ? 'connected' : 'disconnected',
+    });
+
+    // Simpan state terakhir
+    actLast = {
+      in: stats.inbound, out: stats.outbound, nemo: nemoCount,
+      pattern: aiStats.patternCount, grp: skips.group,
+      vid: skips.nonText, me: skips.fromMe, err: errorCount,
+    };
+
+    // Auto-reconnect kalau terputus dan belum ada timer
+    if (!openwa.isConnected() && !reconnectTimer) {
+      log.warn('📡 OpenWA terputus! Memulai reconnect...');
+      startAutoReconnect();
+    }
+  }, ms || 5000);
+}
+
 // --- Main Bootstrap ---
 async function boot() {
   log.banner();
 
-  // 1. Config check
-  log.step(1, 6, 'Validasi konfigurasi');
-  var configRows = [
-    ['OpenWA URL', config.openwa.url],
-    ['OpenWA Key', config.openwa.apiKey ? '***' + config.openwa.apiKey.slice(-4) : '❌ kosong'],
-    ['Nemotron Key', config.nemotron.apiKey ? '***' + config.nemotron.apiKey.slice(-4) : '❌ kosong'],
-    ['Nemotron Model', config.nemotron.model],
-    ['Threshold', config.ai.confidenceThreshold + '%'],
-    ['Auto-Reply', config.ai.autoReplyEnabled ? '✅ AKTIF' : '❌ NONAKTIF'],
-    ['Context', config.ai.contextMessages + ' msgs'],
-    ['DB Path', config.dbPath],
-  ];
-  log.configTable(configRows);
+  // 1. Config
+  log.sys('📦 Config     OpenWA: ' + config.openwa.url + ' │ ' +
+    (config.openwa.apiKey ? '***' + config.openwa.apiKey.slice(-4) : '❌ kosong') +
+    ' │ threshold: ' + config.ai.confidenceThreshold + '% │ ' +
+    (config.ai.autoReplyEnabled ? 'ON ✅' : 'OFF ❌'));
 
-  var warnings = [];
-  if (!config.openwa.apiKey) warnings.push('OPENWA_API_KEY belum di-set');
-  if (!config.nemotron.apiKey) warnings.push('NVIDIA_API_KEY belum di-set — Nemotron tidak tersedia');
-  if (warnings.length) {
-    for (var w of warnings) log.warn('⚠️  ' + w);
-  } else {
-    log.ok('Config lengkap, siap jalan!');
-  }
+  if (!config.openwa.apiKey) log.warn('⚠️  OPENWA_API_KEY belum di-set');
+  if (!config.nemotron.apiKey) log.warn('⚠️  NVIDIA_API_KEY belum di-set — Nemotron tidak tersedia');
 
   // 2. Database
-  log.step(2, 6, 'Inisialisasi database');
   log.startTimer('db');
   await db.init();
   var dbTime = log.elapsed('db');
-  log.ok('Database siap ' + dbTime + ' → ' + config.dbPath);
+  log.sys('🗄️ Database   loaded ✓ │ ' + db.getMessageStats().total + ' messages │ ⏱' + dbTime);
 
   // 3. AI Lokal
-  log.step(3, 6, 'Inisialisasi AI Lokal');
   ai.init();
 
   // 4. Listener
-  log.step(4, 6, 'Inisialisasi listener');
   listener.init();
 
   // 5. OpenWA
-  log.step(5, 6, 'Menghubungkan ke OpenWA');
-  log.info('🌐 Target: ' + config.openwa.url);
   log.startTimer('openwa');
   var sessionOk = await openwa.initSession();
   var waTime = log.elapsed('openwa');
 
   if (sessionOk) {
-    log.arrow('🔌 Menghubungkan Socket.IO...');
     openwa.connectSocket();
-    log.ok('OpenWA connected ' + waTime);
-
-    openwa.onMessage(function(data) {
-      if (config.ai.autoReplyEnabled) {
-        listener.handleMessage(data);
-      }
-    });
-    openwa.onStatus(function(status) {
-      log.openwa('🔄 Session update: ' + JSON.stringify(status).slice(0, 80));
-    });
+    setupCallbacks();
+    log.openwa('✅ connected │ ' + openwa.getSessionId().slice(0, 8) + '...' + waTime);
   } else {
-    log.warn('Tidak ada session aktif di OpenWA');
-    log.info('💡 Bot tetap berjalan, otomatis connect saat OpenWA tersedia');
+    log.warn('📭 Tidak ditemukan session aktif');
+    log.info('🔁 Auto-reconnect aktif → cek tiap 3 detik');
   }
 
   // 6. Server
-  log.step(6, 6, 'Menyalakan server');
   app.listen(config.port, function() {
     log.ready(config.port);
-
-    // Summary line
-    log.divider();
-    log.sys('📊 Auto-reply: ' + (config.ai.autoReplyEnabled ? '✅ AKTIF' : '❌ OFF') +
-      ' │ Threshold: ' + config.ai.confidenceThreshold + '%' +
-      ' │ Context: ' + config.ai.contextMessages + ' msgs');
-    log.divider();
-
-    // Start heartbeat
-    log.startHeartbeat(60000);
     log.blank();
+    log.sys('✅ Bot siap │ auto-reply: ' + (config.ai.autoReplyEnabled ? 'ON' : 'OFF') +
+      (!sessionOk ? ' │ reconnect: AKTIF' : ' │ connected'));
+    log.blank();
+
+    // Background services
+    if (!sessionOk) startAutoReconnect();
+    startActivityFeed(5000);
   });
 }
 
 // Graceful shutdown
 process.on('SIGINT', function() {
-  log.stopHeartbeat();
+  if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+  log.info('🛑 Background services dihentikan');
   log.shutdown();
   db.close();
   process.exit(0);
 });
 
 process.on('uncaughtException', function(err) {
+  errorCount++;
   log.err('💥 Uncaught: ' + err.message);
   log.info('📍 ' + (err.stack ? err.stack.split('\n').slice(0, 3).join(' │ ') : 'no stack'));
 });
 
 process.on('unhandledRejection', function(reason) {
+  errorCount++;
   log.err('💥 Unhandled rejection: ' + reason);
 });
 

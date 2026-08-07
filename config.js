@@ -18,10 +18,10 @@ module.exports = {
   // Server
   port: parseInt(process.env.PORT, 10) || 3000,
 
-  // AI Lokal
+  // AI Engine
   ai: {
     confidenceThreshold: parseInt(process.env.CONFIDENCE_THRESHOLD, 10) || 70,
-    contextMessages: parseInt(process.env.CONTEXT_MESSAGES, 10) || 10,
+    contextMessages: parseInt(process.env.CONTEXT_MESSAGES, 10) || 50,
     autoReplyEnabled: process.env.AUTO_REPLY_ENABLED !== 'false',
   },
 

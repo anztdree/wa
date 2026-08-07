@@ -9,26 +9,55 @@ const client = new OpenAI({
 
 let callCount = 0;
 
-async function generate(prompt) {
+var SYSTEM_PROMPT =
+  'Kamu Andri, cowok Indonesia, chat WA pribadi. ' +
+  'Langsung jawab, jangan keluarkan proses berpikir.';
+
+// ============================================================
+// POST-PROCESSING — Hapus thinking/reasoning leak
+// ============================================================
+function cleanThinking(text) {
+  if (!text) return text;
+  var lines = text.split('\n');
+  var result = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    // Skip baris thinking — dimulai dengan huruf kecil atau tanda baca thinking
+    if (/^[a-z]/.test(line) && result.length === 0) continue;
+    result.push(line);
+  }
+  var final = result.join('\n').trim();
+  return final || text;
+}
+
+async function generate(messages) {
   if (!config.nemotron.apiKey) {
     log.warn('⚡ Nemotron API key tidak tersedia');
     return null;
   }
   try {
     callCount++;
-    log.nemotron('📤 Request #' + callCount + ' — menghubungi NVIDIA API...');
+    log.nemotron('📤 Request #' + callCount + ' → NVIDIA API...');
     log.startTimer('nemotron');
 
     var response = await client.chat.completions.create({
       model: config.nemotron.model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500,
-      temperature: 0.8,
+      messages: messages,
+      max_tokens: 256,
+      temperature: 0.75,
+      top_p: 0.9,
     });
 
     var elapsed = log.elapsed('nemotron');
-    var result = (response.choices[0] && response.choices[0].message && response.choices[0].message.content || '').trim();
-    log.nemotron('📥 Response diterima → ' + result.length + ' chars ' + (elapsed || ''));
+    var raw = (response.choices[0] && response.choices[0].message && response.choices[0].message.content || '').trim();
+    var result = cleanThinking(raw);
+
+    if (result !== raw) {
+      log.nemotron('🧹 Thinking removed → ' + raw.length + ' → ' + result.length + ' chars');
+    }
+
+    log.nemotron('📥 Response → ' + result.length + ' chars ' + (elapsed || ''));
     return result;
   } catch (err) {
     log.elapsed('nemotron');
@@ -37,29 +66,23 @@ async function generate(prompt) {
   }
 }
 
-async function helpGenerate(message, context, styleProfile) {
-  var styleDesc = styleProfile
-    ? 'Gaya bicara: singkatan=' + JSON.stringify(styleProfile.common_abbreviations) + ', slang=' + JSON.stringify(styleProfile.slang_words) + ', emoji=' + JSON.stringify(styleProfile.emoji_patterns) + ', formality=' + styleProfile.formality_score
-    : 'Gaya bicara: casual bahasa Indonesia, singkat, natural';
+async function generateReply(message, context) {
+  var msgs = [{ role: 'system', content: SYSTEM_PROMPT }];
 
-  var contextLines = context.map(function(m) {
-    return (m.direction === 'inbound' ? 'Lawan' : 'Andri') + ': ' + m.body;
-  }).join('\n');
+  if (context && context.length > 0) {
+    for (var i = 0; i < context.length; i++) {
+      var m = context[i];
+      var role = m.direction === 'outbound' ? 'assistant' : 'user';
+      var prefix = '';
+      if (role === 'user' && m.sender_name) prefix = m.sender_name + ': ';
+      msgs.push({ role: role, content: prefix + m.body });
+    }
+  }
 
-  var prompt = 'Kamu adalah asisten AI yang belajar meniru gaya bicara seseorang. Tugasmu bukan menjawab langsung, tapi membantu sistem AI Lokal belajar.\n\n' +
-    styleDesc + '\n\n' +
-    'Pesan yang masuk: "' + message + '"\n\n' +
-    'Konteks percakapan terakhir:\n' + contextLines + '\n\n' +
-    'TUGAS: Generate 1 respons pendek yang:\n' +
-    '1. Natural seperti chat WhatsApp biasa\n' +
-    '2. Sesuai gaya bicara di atas\n' +
-    '3. Maksimal 2 kalimat pendek\n' +
-    '4. Bukan formal, bukan robot\n\n' +
-    'Berikan HANYA responsnya, tanpa penjelasan.';
-
-  return generate(prompt);
+  msgs.push({ role: 'user', content: message });
+  return generate(msgs);
 }
 
 function getCallCount() { return callCount; }
 
-module.exports = { generate: generate, helpGenerate: helpGenerate, getCallCount: getCallCount };
+module.exports = { generate: generate, generateReply: generateReply, getCallCount: getCallCount };

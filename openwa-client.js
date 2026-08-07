@@ -1,16 +1,17 @@
 const config = require('./config');
 const log = require('./logger');
 
-const API = config.openwa.url + '/api';
-const WS = config.openwa.url;
-const HEADERS = { 'Content-Type': 'application/json', 'x-api-key': config.openwa.apiKey };
+var API = config.openwa.url + '/api';
+var WS = config.openwa.url;
+var HEADERS = { 'Content-Type': 'application/json', 'x-api-key': config.openwa.apiKey };
 
-let sessionId = null;
-let ownerPhone = null;
-let socket = null;
-let onMessageCallback = null;
-let onStatusCallback = null;
-let connected = false;
+var sessionId = null;
+var ownerPhone = null;
+var socket = null;
+var onMessageCallback = null;
+var onStatusCallback = null;
+var connected = false;
+var quietMode = false;
 
 // --- REST API ---
 async function api(method, pathStr, body) {
@@ -23,31 +24,34 @@ async function api(method, pathStr, body) {
     if (!res.ok) throw new Error(res.status + ': ' + JSON.stringify(data).slice(0, 100));
     return data;
   } catch (err) {
-    log.openwa('❌ API ' + method + ' ' + pathStr + ' → gagal: ' + err.message.split('\n')[0]);
+    if (!quietMode) log.openwa('❌ API ' + method + ' ' + pathStr + ' → gagal: ' + err.message.split('\n')[0]);
     return null;
   }
 }
 
 // --- Session ---
-async function getSession() {
-  log.arrow('🔍 Mencari session aktif...');
+async function initSession(silent) {
+  quietMode = !!silent;
+  if (!silent) log.arrow('🔍 Mencari session aktif...');
   var sessions = await api('GET', '/sessions?limit=10');
+  quietMode = false;
   if (!sessions || !sessions.length) {
-    log.openwa('📭 Tidak ditemukan session aktif');
-    return null;
+    if (!silent) log.openwa('📭 Tidak ditemukan session aktif');
+    return false;
   }
   for (var i = 0; i < sessions.length; i++) {
     var s = sessions[i];
     var mark = (s.status === 'connected' || s.status === 'ready') ? ' ✅' : ' ⬜';
     log.info('   └ ' + s.name + ' (' + s.status + ')' + mark);
   }
-  var ready = sessions.find(function(s) { return s.status === 'connected' || s.status === 'ready'; });
-  return ready || sessions[0];
-}
-
-async function initSession() {
-  var session = await getSession();
-  if (!session) return false;
+  var ready = null;
+  for (var j = 0; j < sessions.length; j++) {
+    if (sessions[j].status === 'connected' || sessions[j].status === 'ready') {
+      ready = sessions[j];
+      break;
+    }
+  }
+  var session = ready || sessions[0];
   sessionId = session.id;
   ownerPhone = session.phone || null;
   log.ok('Session terpilih: ' + session.name + ' (' + session.status + ')');
@@ -60,8 +64,7 @@ async function initSession() {
 async function sendText(chatId, text, options) {
   if (!sessionId) return null;
   return api('POST', '/sessions/' + sessionId + '/messages/send-text', {
-    chatId: chatId,
-    text: text,
+    chatId: chatId, text: text,
     mentions: (options && options.mentions) ? options.mentions : undefined,
     quotedMsgId: (options && options.quotedMsgId) ? options.quotedMsgId : undefined,
   });
@@ -70,9 +73,7 @@ async function sendText(chatId, text, options) {
 async function replyText(chatId, quotedMsgId, text) {
   if (!sessionId) return null;
   return api('POST', '/sessions/' + sessionId + '/messages/reply', {
-    chatId: chatId,
-    quotedMsgId: quotedMsgId,
-    text: text,
+    chatId: chatId, quotedMsgId: quotedMsgId, text: text,
   });
 }
 
@@ -81,17 +82,17 @@ async function sendTyping(chatId) {
   api('POST', '/sessions/' + sessionId + '/chats/typing', { chatId: chatId, state: 'typing' }).catch(function() {});
 }
 
+function getSessionId() { return sessionId; }
+
 // --- Chat & Contact Data ---
 async function getChats(limit) {
   if (!sessionId) return [];
-  var chats = await api('GET', '/sessions/' + sessionId + '/chats?limit=' + (limit || 50));
-  return chats || [];
+  return (await api('GET', '/sessions/' + sessionId + '/chats?limit=' + (limit || 50))) || [];
 }
 
 async function getChatMessages(chatId, limit) {
   if (!sessionId) return [];
-  var msgs = await api('GET', '/sessions/' + sessionId + '/messages?chatId=' + encodeURIComponent(chatId) + '&limit=' + (limit || 10));
-  return msgs || [];
+  return (await api('GET', '/sessions/' + sessionId + '/messages?chatId=' + encodeURIComponent(chatId) + '&limit=' + (limit || 10))) || [];
 }
 
 // --- Socket.IO Connection ---
@@ -146,7 +147,6 @@ function connectSocket() {
     }
   });
 
-  // Subscribe ke events
   setTimeout(function() {
     if (socket.connected && sessionId) {
       socket.emit('message', {
@@ -163,7 +163,6 @@ function connectSocket() {
 
 function onMessage(cb) { onMessageCallback = cb; }
 function onStatus(cb) { onStatusCallback = cb; }
-function getSessionId() { return sessionId; }
 function getOwnerPhone() { return ownerPhone; }
 function isConnected() { return connected; }
 

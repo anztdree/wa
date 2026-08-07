@@ -106,6 +106,7 @@ function createSchema() {
 }
 
 function save() {
+  if (!db) return;
   var data = db.export();
   var buffer = Buffer.from(data);
   fs.writeFileSync(DB_PATH, buffer);
@@ -121,10 +122,26 @@ function close() {
   }
 }
 
+// --- Helper: sql.js exec wrapper ---
+// sql.js returns: [{ columns: [...], values: [[row1], [row2], ...] }]
+// values[rowIndex][colIndex] = cell value
+function query(sql, params) {
+  if (!db) return [];
+  var results = db.exec(sql, params);
+  if (!results.length || !results[0] || !results[0].values || !results[0].values.length) return [];
+  return results[0].values;
+}
+
+function getScalar(sql, params) {
+  var rows = query(sql, params);
+  if (!rows.length) return null;
+  return rows[0][0];
+}
+
 // --- Messages ---
 function insertMessage(msg) {
   db.run(
-    'INSERT INTO messages (session_id, chat_id, sender_id, sender_name, body, message_type, timestamp, direction, is_group, author, quoted_body, source, confidence) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO messages (session_id, chat_id, sender_id, sender_name, body, message_type, timestamp, direction, is_group, author, quoted_body, source, confidence) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
     [
       msg.session_id || '',
       msg.chat_id || '',
@@ -145,40 +162,44 @@ function insertMessage(msg) {
 }
 
 function getChatMessages(chatId, limit) {
-  var results = db.exec(
-    'SELECT sender_id, sender_name, body, direction, timestamp, is_group, author FROM messages WHERE chat_id = ? ORDER BY timestamp DESC LIMIT ?',
-    [chatId, limit || 10]
-  );
-  if (!results.length) return [];
-  var ids = results[0][0], names = results[1][0], bodies = results[2][0], dirs = results[3][0], times = results[4][0], groups = results[5][0], authors = results[6][0];
+  var sql, params;
+  if (limit && limit > 0) {
+    sql = 'SELECT sender_id, sender_name, body, direction, timestamp, is_group, author FROM messages WHERE chat_id = ? ORDER BY timestamp DESC LIMIT ?';
+    params = [chatId, limit];
+  } else {
+    // Unlimited — ambil semua pesan untuk chatId ini (AI belajar dari full history)
+    sql = 'SELECT sender_id, sender_name, body, direction, timestamp, is_group, author FROM messages WHERE chat_id = ? ORDER BY timestamp ASC';
+    params = [chatId];
+  }
+  var rows = query(sql, params);
   var arr = [];
-  for (var i = 0; i < ids.length; i++) {
+  for (var i = 0; i < rows.length; i++) {
     arr.push({
-      sender_id: ids[i],
-      sender_name: names[i],
-      body: bodies[i],
-      direction: dirs[i],
-      timestamp: times[i],
-      is_group: groups[i] === 1,
-      author: authors[i],
+      sender_id: rows[i][0],
+      sender_name: rows[i][1],
+      body: rows[i][2],
+      direction: rows[i][3],
+      timestamp: rows[i][4],
+      is_group: rows[i][5] === 1,
+      author: rows[i][6],
     });
   }
-  return arr.reverse();
+  // Kalau pakai limit (DESC), reverse ke ASC. Kalau unlimited (sudah ASC), tidak perlu.
+  if (limit && limit > 0) arr.reverse();
+  return arr;
 }
 
 function getRecentMessages(limit) {
-  var results = db.exec(
-    'SELECT m.session_id, m.chat_id, m.sender_id, m.sender_name, m.body, m.direction, m.timestamp, m.source, m.is_group FROM messages m ORDER BY m.timestamp DESC LIMIT ?',
+  var rows = query(
+    'SELECT session_id, chat_id, sender_id, sender_name, body, direction, timestamp, source, is_group FROM messages ORDER BY timestamp DESC LIMIT ?',
     [limit || 20]
   );
-  if (!results.length) return [];
-  var sid = results[0][0], cid = results[1][0], snd = results[2][0], nm = results[3][0], bd = results[4][0], dr = results[5][0], ts = results[6][0], src = results[7][0], grp = results[8][0];
   var arr = [];
-  for (var i = 0; i < sid.length; i++) {
+  for (var i = 0; i < rows.length; i++) {
     arr.push({
-      session_id: sid[i], chat_id: cid[i], sender_id: snd[i],
-      sender_name: nm[i], body: bd[i], direction: dr[i],
-      timestamp: ts[i], source: src[i], is_group: grp[i] === 1,
+      session_id: rows[i][0], chat_id: rows[i][1], sender_id: rows[i][2],
+      sender_name: rows[i][3], body: rows[i][4], direction: rows[i][5],
+      timestamp: rows[i][6], source: rows[i][7], is_group: rows[i][8] === 1,
     });
   }
   return arr.reverse();
@@ -221,21 +242,19 @@ function insertPattern(pattern) {
 }
 
 function getPatterns() {
-  var results = db.exec('SELECT id, trigger_keywords, intent, response_template, confidence, usage_count, success_count, source, created_at FROM patterns ORDER BY usage_count DESC');
-  if (!results.length) return [];
-  var ids = results[0][0], kw = results[1][0], intent = results[2][0], tmpl = results[3][0], conf = results[4][0], usage = results[5][0], succ = results[6][0], src = results[7][0], created = results[8][0];
+  var rows = query('SELECT id, trigger_keywords, intent, response_template, confidence, usage_count, success_count, source, created_at FROM patterns ORDER BY usage_count DESC');
   var arr = [];
-  for (var i = 0; i < ids.length; i++) {
+  for (var i = 0; i < rows.length; i++) {
     arr.push({
-      id: ids[i],
-      keywords: JSON.parse(kw[i]),
-      intent: intent[i],
-      response_template: tmpl[i],
-      confidence: conf[i],
-      usage_count: usage[i],
-      success_count: succ[i],
-      source: src[i],
-      created_at: created[i],
+      id: rows[i][0],
+      keywords: JSON.parse(rows[i][1]),
+      intent: rows[i][2],
+      response_template: rows[i][3],
+      confidence: rows[i][4],
+      usage_count: rows[i][5],
+      success_count: rows[i][6],
+      source: rows[i][7],
+      created_at: rows[i][8],
     });
   }
   return arr;
@@ -247,16 +266,16 @@ function getPatternCount() {
 
 // --- Style Profile ---
 function getStyleProfile() {
-  var results = db.exec('SELECT avg_sentence_length, common_abbreviations, emoji_patterns, slang_words, formality_score, sample_count, last_updated FROM style_profile WHERE id = 1');
-  if (!results.length) return null;
+  var rows = query('SELECT avg_sentence_length, common_abbreviations, emoji_patterns, slang_words, formality_score, sample_count, last_updated FROM style_profile WHERE id = 1');
+  if (!rows.length) return null;
   return {
-    avg_sentence_length: results[0][0][0],
-    common_abbreviations: JSON.parse(results[1][0][0] || '{}'),
-    emoji_patterns: JSON.parse(results[2][0][0] || '{}'),
-    slang_words: JSON.parse(results[3][0][0] || '{}'),
-    formality_score: results[4][0][0],
-    sample_count: results[5][0][0],
-    last_updated: results[6][0][0],
+    avg_sentence_length: rows[0][0],
+    common_abbreviations: JSON.parse(rows[0][1] || '{}'),
+    emoji_patterns: JSON.parse(rows[0][2] || '{}'),
+    slang_words: JSON.parse(rows[0][3] || '{}'),
+    formality_score: rows[0][4],
+    sample_count: rows[0][5],
+    last_updated: rows[0][6],
   };
 }
 
@@ -281,14 +300,11 @@ function insertNemotronLog(entry) {
   save();
 }
 
-// --- Helpers ---
-function getScalar(sql, params) {
-  var results = db.exec(sql, params);
-  return results.length && results[0].length ? results[0][0][0] : null;
-}
+// --- Public ---
+function getDb() { return db; }
 
 module.exports = {
-  db: db,
+  getDb: getDb,
   init: init,
   close: close,
   save: save,
