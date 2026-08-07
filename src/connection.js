@@ -11,6 +11,21 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { saveMessage } from './db.js';
 
+// ==================== LOGGER STYLISH ====================
+const log = {
+  info:  (msg, ...args) => console.log(`\x1b[36m[ℹ️]\x1b[0m  ${msg}`, ...args),
+  ok:    (msg, ...args) => console.log(`\x1b[32m[✅]\x1b[0m  ${msg}`, ...args),
+  warn:  (msg, ...args) => console.log(`\x1b[33m[⚠️]\x1b[0m  ${msg}`, ...args),
+  fail:  (msg, ...args) => console.log(`\x1b[31m[❌]\x1b[0m  ${msg}`, ...args),
+  pp:    (msg, ...args) => console.log(`\x1b[35m[🖼️ PP]\x1b[0m  ${msg}`, ...args),
+  name:  (msg, ...args) => console.log(`\x1b[34m[📛 NAMA]\x1b[0m  ${msg}`, ...args),
+  hist:  (msg, ...args) => console.log(`\x1b[90m[📜 HIST]\x1b[0m  ${msg}`, ...args),
+  cache: (msg, ...args) => console.log(`\x1b[90m[💾 CACHE]\x1b[0m  ${msg}`, ...args),
+  conn:  (msg, ...args) => console.log(`\x1b[36m[🔗 CONN]\x1b[0m  ${msg}`, ...args),
+  msg:   (msg, ...args) => console.log(`\x1b[90m[💬 MSG]\x1b[0m  ${msg}`, ...args),
+  sep:   ()           => console.log('\x1b[90m' + '─'.repeat(50) + '\x1b[0m'),
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,10 +36,15 @@ export let currentWaStatus = 'close';
 const groupMetadataCache = new Map();
 const ppCache = new Map();
 const nameCache = new Map();
+const noPPSet = new Set(); // JIDs yang sudah diketahui tidak punya PP
+
+// Helper: cek apakah JID adalah personal (bukan grup/status)
+const isPersonalJid = (jid) => jid && (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid'));
 
 const CACHE_DIR = path.join(__dirname, '..');
 const PP_CACHE_FILE = path.join(CACHE_DIR, 'pp_cache.json');
 const NAME_CACHE_FILE = path.join(CACHE_DIR, 'name_cache.json');
+const NO_PP_FILE = path.join(CACHE_DIR, 'no_pp_set.json');
 
 // ==================== PERSISTENCE ====================
 function loadJSONCache(filePath) {
@@ -58,38 +78,57 @@ function saveNameToFile(jid, name) {
 // Load cache dari file saat startup
 const loadedPP = loadJSONCache(PP_CACHE_FILE);
 loadedPP.forEach((v, k) => ppCache.set(k, v));
-console.log(`[CACHE] PP cache loaded: ${ppCache.size} entries`);
+if (ppCache.size > 0) log.cache(`PP cache loaded → ${ppCache.size} entries`);
 
 const loadedNames = loadJSONCache(NAME_CACHE_FILE);
 loadedNames.forEach((v, k) => nameCache.set(k, v));
-console.log(`[CACHE] Name cache loaded: ${nameCache.size} entries`);
+if (nameCache.size > 0) log.cache(`Name cache loaded → ${nameCache.size} entries`);
+
+// Load no-PP set
+try {
+  if (fs.existsSync(NO_PP_FILE)) {
+    const arr = JSON.parse(fs.readFileSync(NO_PP_FILE, 'utf-8'));
+    if (Array.isArray(arr)) arr.forEach(j => noPPSet.add(j));
+    if (noPPSet.size > 0) log.cache(`No-PP set loaded → ${noPPSet.size} entries`);
+  }
+} catch (e) {}
+
+function saveNoPPSet() {
+  try { fs.writeFileSync(NO_PP_FILE, JSON.stringify([...noPPSet])); } catch (e) {}
+}
 
 // ==================== PROFILE PICTURE ====================
 async function fetchPP(jid, emitEvent) {
-  if (!sock || ppCache.has(jid)) return;
+  if (!sock || ppCache.has(jid) || noPPSet.has(jid)) return;
   try {
-    console.log(`[PP] Fetching: ${jid}`);
+    log.pp(`Fetching → ${jid}`);
     const url = await sock.profilePictureUrl(jid, 'image');
-    console.log(`[PP] Got: ${jid} -> ${url ? url.substring(0, 60) + '...' : 'null'}`);
+    log.ok(`Got PP → ${jid}`);
     savePPToFile(jid, url);
     if (emitEvent) emitEvent('profile_picture', { jid, url });
   } catch (e) {
-    console.log(`[PP] No PP for: ${jid}`);
+    noPPSet.add(jid);
+    saveNoPPSet();
+    log.warn(`No PP → ${jid} (cached, won't retry)`);
   }
 }
 
 async function batchFetchPP(jids, emitEvent) {
-  console.log(`[PP] Batch fetching ${jids.length} profile pictures...`);
-  let success = 0;
-  for (const jid of jids) {
+  const toFetch = jids.filter(jid => !ppCache.has(jid) && !noPPSet.has(jid));
+  const skipped = jids.length - toFetch.length;
+  if (toFetch.length === 0) {
+    log.pp(`✅ Semua PP sudah cached / no-PP (${skipped} skipped)`);
+    return;
+  }
+  log.pp(`Batch fetching ${toFetch.length} PP... (${skipped} already known)`);
+  let success = 0, noPP = 0;
+  for (const jid of toFetch) {
     if (!sock) break;
-    if (!ppCache.has(jid)) {
-      await fetchPP(jid, emitEvent);
-      if (ppCache.has(jid)) success++;
-    }
+    await fetchPP(jid, emitEvent);
+    if (ppCache.has(jid)) success++; else noPP++;
     await new Promise(r => setTimeout(r, 300));
   }
-  console.log(`[PP] Batch done: ${success} new, ${ppCache.size} total cached`);
+  log.ok(`Batch PP done → ✨ ${success} baru, 🚫 ${noPP} no-PP, ⏭️ ${skipped} skip, 📦 ${ppCache.size} total`);
 }
 
 // ==================== PHONE NUMBER ====================
@@ -125,15 +164,18 @@ export async function getChatName(jid, pushName = '') {
         }
       }
     } catch (e) {
-      console.log(`[NAME] Gagal fetch grup metadata: ${jid}`);
+      log.warn(`Gagal fetch grup metadata → ${jid}`);
     }
     return 'Grup WhatsApp';
   }
 
-  // 3. Personal — pakai pushName dari pesan
-  if (pushName && pushName.trim() !== '' && pushName.trim() !== 'undefined') {
-    saveNameToFile(jid, pushName.trim());
-    return pushName.trim();
+  // 3. Personal (@s.whatsapp.net atau @lid) — pakai pushName dari pesan
+  if (isPersonalJid(jid)) {
+    if (pushName && pushName.trim() !== '' && pushName.trim() !== 'undefined' && !/^\d+$/.test(pushName.trim())) {
+      saveNameToFile(jid, pushName.trim());
+      log.name(`Resolved (pushName) → ${jid} = "${pushName.trim()}"`);
+      return pushName.trim();
+    }
   }
 
   // 4. Fallback: nomor mentah
@@ -200,55 +242,118 @@ export async function connectWhatsApp(emitEvent) {
       if (emitEvent) emitEvent('status', 'connecting');
 
       if (shouldReconnect) {
+        log.warn(`Koneksi terputus (code: ${statusCode}), reconnecting...`);
         connectWhatsApp(emitEvent);
       } else {
+        log.fail(`Logged out. Tidak reconnect.`);
         currentWaStatus = 'close';
         if (emitEvent) emitEvent('status', 'close');
       }
     } else if (connection === 'open') {
-      console.log('WA Connected!');
+      log.ok('🟢 WhatsApp CONNECTED!');
+      log.sep();
+
+      // Kirim cache ke UI saat koneksi baru
+      if (emitEvent) {
+        if (nameCache.size > 0) {
+          emitEvent('name_cache', Object.fromEntries(nameCache));
+          log.info(`📡 name_cache dikirim ke UI → ${nameCache.size} entries`);
+        }
+        if (ppCache.size > 0) {
+          emitEvent('pp_cache', Object.fromEntries(ppCache));
+          log.info(`📡 pp_cache dikirim ke UI → ${ppCache.size} entries`);
+        }
+      }
     }
   });
 
   sock.ev.on('creds.update', saveCreds);
 
+  // ==================== CONTACTS SYNC (NAMA KONTAK HP) ====================
+  sock.ev.on('contacts.set', ({ contacts }) => {
+    if (!contacts || contacts.length === 0) return;
+    let count = 0;
+    for (const c of contacts) {
+      if (!c.id || !c.name || c.name.trim() === '') continue;
+      const name = c.name.trim();
+      // Skip kalau cuma angka
+      if (/^\d+$/.test(name)) continue;
+      // Cek apakah JID ini ada di nameCache dengan nama mentah
+      const existing = nameCache.get(c.id);
+      if (!existing || /^\+?\d+$/.test(existing) || existing.includes('@')) {
+        nameCache.set(c.id, name);
+        count++;
+      }
+    }
+    saveJSONCache(NAME_CACHE_FILE, nameCache);
+    log.name(`📱 contacts.set → ${count}/${contacts.length} nama kontak diproses`);
+    // Kirim update ke UI
+    if (emitEvent && count > 0) {
+      emitEvent('name_cache', Object.fromEntries(nameCache));
+      log.info(`📡 name_cache dikirim ke UI (${nameCache.size} entries)`);
+    }
+  });
+
+  // ==================== GROUPS SYNC ====================
+  sock.ev.on('groups.set', ({ groups }) => {
+    if (!groups || groups.length === 0) return;
+    let count = 0;
+    for (const g of groups) {
+      if (g.id && g.subject) {
+        groupMetadataCache.set(g.id, g.subject);
+        saveNameToFile(g.id, g.subject);
+        count++;
+      }
+    }
+    if (count > 0) log.name(`👥 groups.set → ${count} grup diperbarui`);
+    if (emitEvent && count > 0) {
+      emitEvent('name_cache', Object.fromEntries(nameCache));
+    }
+  });
+
   // ==================== HISTORY SYNC ====================
   sock.ev.on('messaging-history.set', async ({ messages, chats: chatMap, isLatest }) => {
-    console.log(`[HISTORY] Sync: ${messages?.length || 0} pesan, ${chatMap ? Object.keys(chatMap).length : 0} chats, isLatest=${isLatest}`);
+    const msgCount = messages?.length || 0;
+    const chatCount = chatMap ? Object.keys(chatMap).length : 0;
+    log.hist(`📥 Sync incoming → ${msgCount} pesan, ${chatCount} chats, isLatest=${isLatest}`);
 
     // 1. Proses chats metadata untuk ambil NAMA
     let nameCount = 0;
+    let debugLogged = 0;
     if (chatMap) {
       for (const [jid, chatData] of Object.entries(chatMap)) {
         if (!jid || !chatData) continue;
         
-        // Log struktur chatData untuk debug
-        if (nameCount < 5) {
-          console.log(`[HISTORY] Chat ${jid}: name="${chatData.name || '(empty)'}" notify="${chatData.notify || '(empty)'}"`);
+        // Debug: log 5 pertama untuk lihat struktur
+        if (debugLogged < 5) {
+          log.hist(`📋 Chat[${debugLogged}] → jid=${jid}, name="${chatData.name || '(empty)'}", notify="${chatData.notify || '(empty)'}"`);
+          debugLogged++;
         }
 
-        // Grup
+        // Grup — ambil nama dari chatData.name
         if (jid.endsWith('@g.us') && chatData.name) {
           groupMetadataCache.set(jid, chatData.name);
           saveNameToFile(jid, chatData.name);
           nameCount++;
         }
-        // Personal chat
-        if (jid.endsWith('@s.whatsapp.net')) {
-          if (chatData.name && chatData.name.trim() && !/^\d+$/.test(chatData.name.trim())) {
-            saveNameToFile(jid, chatData.name.trim());
+        // Personal chat — handle @s.whatsapp.net DAN @lid
+        if (isPersonalJid(jid)) {
+          const name = chatData.name?.trim();
+          const notify = chatData.notify?.trim();
+          
+          if (name && !/^\d+$/.test(name)) {
+            saveNameToFile(jid, name);
             nameCount++;
-          }
-          if (chatData.notify && chatData.notify.trim() && !/^\d+$/.test(chatData.notify.trim())) {
+          } else if (notify && !/^\d+$/.test(notify)) {
             if (!nameCache.has(jid)) {
-              saveNameToFile(jid, chatData.notify.trim());
+              saveNameToFile(jid, notify);
               nameCount++;
             }
           }
         }
       }
     }
-    console.log(`[HISTORY] ${nameCount} nama kontak ditemukan dari chat metadata`);
+    log.name(`Ditemukan ${nameCount} nama dari chat metadata`);
 
     // 2. Proses pesan
     const allJids = new Set();
@@ -261,28 +366,28 @@ export async function connectWhatsApp(emitEvent) {
         savedCount++;
       }
     }
-    console.log(`[HISTORY] ${savedCount} pesan diproses, ${allJids.size} unique JID`);
+    log.hist(`💾 ${savedCount} pesan diproses, ${allJids.size} unique JID`);
 
     // 3. Kirim cache ke UI
     if (emitEvent) {
       if (nameCache.size > 0) {
         emitEvent('name_cache', Object.fromEntries(nameCache));
-        console.log(`[HISTORY] name_cache dikirim ke UI: ${nameCache.size} entries`);
+        log.info(`📡 name_cache → UI (${nameCache.size} entries)`);
       }
       if (ppCache.size > 0) {
         emitEvent('pp_cache', Object.fromEntries(ppCache));
-        console.log(`[HISTORY] pp_cache dikirim ke UI: ${ppCache.size} entries`);
+        log.info(`📡 pp_cache → UI (${ppCache.size} entries)`);
       }
     }
 
-    // 4. Batch fetch PP di background
+    // 4. Batch fetch PP di background (hanya jika isLatest)
     if (emitEvent && allJids.size > 0 && isLatest) {
       const toFetch = [...allJids].filter(jid => !ppCache.has(jid));
       if (toFetch.length > 0) {
-        console.log(`[HISTORY] Akan fetch PP untuk ${toFetch.length} kontak baru...`);
+        log.pp(`⏳ Akan fetch PP untuk ${toFetch.length} kontak baru dalam 3s...`);
         setTimeout(() => batchFetchPP(toFetch, emitEvent), 3000);
       } else {
-        console.log(`[HISTORY] Semua PP sudah di-cache`);
+        log.pp(`✅ Semua PP sudah cached`);
       }
     }
   });
@@ -293,6 +398,7 @@ export async function connectWhatsApp(emitEvent) {
     }
   });
 
+  log.info(`Socket created → browser: Ubuntu/Chrome/20.0.04`);
   return sock;
 }
 

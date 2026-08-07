@@ -22,30 +22,26 @@ const emitEvent = (event, data) => {
 
 console.clear();
 console.log('========================================');
-console.log('WA MOBILE WEB ENGINE RUNNING');
+console.log('🚀 WA MOBILE WEB ENGINE RUNNING');
 console.log('========================================');
 
 connectWhatsApp(emitEvent);
 
 io.on('connection', (socket) => {
-  console.log('Web UI Client Terhubung');
+  console.log('📱 Web UI Client Terhubung');
 
-  // Kirim status WA terkini
+  // PERBAIKAN: Langsung kirimkan status WA terkini saat UI dibuka/refresh
   socket.emit('status', currentWaStatus);
 
-  // Kirim riwayat pesan dari DB
+  // Kirim riwayat pesan dari DB saat client terhubung
   const storedMessages = getAllMessages();
   socket.emit('load_history', storedMessages);
 
   // Kirim cached PP & nama (supaya survive refresh)
   const ppData = getPPCache();
-  if (Object.keys(ppData).length > 0) {
-    socket.emit('pp_cache', ppData);
-  }
+  if (Object.keys(ppData).length > 0) socket.emit('pp_cache', ppData);
   const nameData = getNameCache();
-  if (Object.keys(nameData).length > 0) {
-    socket.emit('name_cache', nameData);
-  }
+  if (Object.keys(nameData).length > 0) socket.emit('name_cache', nameData);
 
   socket.on('send_message', async (data, callback) => {
     try {
@@ -59,5 +55,5 @@ io.on('connection', (socket) => {
 
 const PORT = 3500;
 httpServer.listen(PORT, () => {
-  console.log(`Akses Web UI di: http://localhost:${PORT}`);
+  console.log(`🌐 Akses Web UI di: http://localhost:${PORT}`);
 });
