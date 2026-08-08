@@ -3,571 +3,1060 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BOT_CORE - WhatsApp Auto-Reply</title>
+  <title>BOT_CORE — Dashboard</title>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-cyber: #05070a; --bg-card: rgba(10, 15, 24, 0.85); --border-neon: rgba(0, 240, 255, 0.2);
-      --neon-cyan: #00f0ff; --neon-cyan-glow: rgba(0, 240, 255, 0.4); --neon-green: #00ff66;
-      --neon-magenta: #ff0055; --neon-yellow: #fbbf24; --text-main: #e2e8f0; --text-muted: #64748b;
-      --msg-sent: rgba(0, 240, 255, 0.1); --msg-received: rgba(15, 23, 42, 0.9);
-      --input-bg: rgba(0, 0, 0, 0.4); --grid-opacity: 0.03;
+      --bg: #0c0e14;
+      --bg-card: #141720;
+      --bg-card-alt: #1a1e2e;
+      --bg-hover: #1e2236;
+      --border: #1f2438;
+      --text: #e4e6ed;
+      --text2: #8b90a8;
+      --text3: #4e5370;
+      --accent: #00d4ff;
+      --accent-soft: rgba(0,212,255,0.08);
+      --green: #2dd4a0;
+      --green-soft: rgba(45,212,160,0.08);
+      --red: #f0616a;
+      --red-soft: rgba(240,97,106,0.08);
+      --yellow: #f0b429;
+      --yellow-soft: rgba(240,180,41,0.08);
+      --purple: #a78bfa;
+      --purple-soft: rgba(167,139,250,0.08);
+      --orange: #fb923c;
+      --orange-soft: rgba(251,146,60,0.08);
+      --radius: 14px;
+      --radius-sm: 10px;
     }
-    html.light {
-      --bg-cyber: #f1f5f9; --bg-card: rgba(255, 255, 255, 0.9); --border-neon: rgba(14, 165, 233, 0.3);
-      --neon-cyan: #0284c7; --neon-cyan-glow: rgba(14, 165, 233, 0.2); --neon-green: #16a34a;
-      --neon-magenta: #dc2626; --neon-yellow: #d97706; --text-main: #1e293b; --text-muted: #94a3b8;
-      --msg-sent: rgba(14, 165, 233, 0.08); --msg-received: rgba(241, 245, 249, 0.95);
-      --input-bg: rgba(0, 0, 0, 0.04); --grid-opacity: 0.04;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+    /* ===== TOP BAR ===== */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 10;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; width: 100%; overflow: hidden; background-color: #020305; color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
-    html.light, html.light body { background-color: #e2e8f0; }
-    .app-container {
-      width: 100%; max-width: 480px; height: 100vh; height: 100dvh; margin: 0 auto;
-      background-color: var(--bg-cyber);
-      background-image: linear-gradient(rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px);
-      background-size: 24px 24px;
-      display: flex; flex-direction: column; position: relative; overflow: hidden;
-      transition: background-color 0.3s;
+    .topbar-brand { display: flex; align-items: center; gap: 8px; }
+    .topbar-logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff; font-weight: 800;
+    }
+    .topbar-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.5px; }
+    .topbar-sub { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+    /* ===== TAB NAV ===== */
+    .tab-nav { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 7px 14px; border-radius: 8px; border: 1px solid transparent;
+      background: transparent; color: var(--text2); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; font-family: inherit; display: flex; align-items: center; gap: 6px;
+    }
+    .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+    .tab-btn.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+    .tab-btn i { font-size: 11px; }
+
+    /* ===== MAIN CONTENT ===== */
+    .content { flex: 1; overflow: hidden; position: relative; }
+    .tab-panel { position: absolute; inset: 0; overflow-y: auto; padding: 14px 16px; display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ===== KPI GRID 2x2 ===== */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .kpi {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px; position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .kpi.k-in::before { background: var(--accent); }
+    .kpi.k-draft::before { background: var(--yellow); }
+    .kpi.k-auto::before { background: var(--green); }
+    .kpi.k-fail::before { background: var(--red); }
+    .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .kpi-label { font-size: 9px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+    .kpi-icon {
+      width: 26px; height: 26px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; font-size: 10px;
+    }
+    .kpi.k-in .kpi-icon { background: var(--accent-soft); color: var(--accent); }
+    .kpi.k-draft .kpi-icon { background: var(--yellow-soft); color: var(--yellow); }
+    .kpi.k-auto .kpi-icon { background: var(--green-soft); color: var(--green); }
+    .kpi.k-fail .kpi-icon { background: var(--red-soft); color: var(--red); }
+    .kpi-value { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+    .kpi.k-in .kpi-value { color: var(--accent); }
+    .kpi.k-draft .kpi-value { color: var(--yellow); }
+    .kpi.k-auto .kpi-value { color: var(--green); }
+    .kpi.k-fail .kpi-value { color: var(--red); }
+    .kpi-sub { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+    /* ===== CARDS ===== */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+    .card-head { padding: 12px 14px 8px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+    .card-badge {
+      font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-body { padding: 0 14px 14px; }
+
+    /* ===== CONNECTION STATUS ===== */
+    .conn-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+    .conn-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text3); transition: background 0.3s;
+    }
+    .conn-dot.open { background: var(--green); box-shadow: 0 0 8px rgba(45,212,160,0.5); }
+    .conn-dot.connecting { background: var(--yellow); animation: pulse 1.5s infinite; }
+    .conn-dot.close { background: var(--red); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .conn-info { flex: 1; }
+    .conn-status { font-size: 13px; font-weight: 600; }
+    .conn-detail { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+    .conn-actions { display: flex; gap: 6px; }
+    .conn-btn {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-hover); color: var(--text2); font-size: 10px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .conn-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: rgba(0,212,255,0.3); }
+
+    /* ===== SPLIT ROW (2 col) ===== */
+    .split-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+    /* ===== MODE INFO ===== */
+    .mode-current {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; background: var(--bg-card-alt); border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+    }
+    .mode-icon { font-size: 16px; }
+    .mode-label { font-size: 10px; color: var(--text3); }
+    .mode-value { font-size: 13px; font-weight: 700; }
+    .mode-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+    .mode-toggle-label { font-size: 11px; color: var(--text2); }
+    .toggle {
+      width: 40px; height: 22px; border-radius: 11px; position: relative;
+      background: var(--bg-hover); border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.3s;
+    }
+    .toggle.on { background: var(--accent-soft); border-color: rgba(0,212,255,0.4); }
+    .toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--text3); transition: all 0.3s;
+    }
+    .toggle.on::after { left: 20px; background: var(--accent); }
+
+    /* ===== AI ENGINE CARD ===== */
+    .ai-info-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .ai-info-row:last-child { border-bottom: none; }
+    .ai-info-label { font-size: 10px; color: var(--text3); min-width: 60px; }
+    .ai-info-value { font-size: 11px; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+
+    /* ===== TIMELINE (FULL WIDTH) ===== */
+    .timeline { display: flex; flex-direction: column; gap: 6px; }
+    .tl-item {
+      display: flex; gap: 10px; padding: 10px 12px;
+      background: var(--bg-card-alt); border-radius: var(--radius-sm);
+      border-left: 3px solid var(--border); transition: border-color 0.2s;
+    }
+    .tl-item.incoming { border-left-color: var(--accent); }
+    .tl-item.draft { border-left-color: var(--yellow); }
+    .tl-item.sent { border-left-color: var(--green); }
+    .tl-item.error { border-left-color: var(--red); }
+    .tl-item.system { border-left-color: var(--purple); }
+    .tl-avatar {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      background: var(--bg-hover); display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text2); overflow: hidden;
+    }
+    .tl-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tl-content { flex: 1; min-width: 0; }
+    .tl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .tl-name { font-size: 11px; font-weight: 700; }
+    .tl-time { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+    .tl-text { font-size: 12px; color: var(--text); line-height: 1.4; word-break: break-word; }
+    .tl-badge {
+      display: inline-block; font-size: 8px; font-weight: 700; padding: 2px 6px;
+      border-radius: 4px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .tl-badge.draft { background: var(--yellow-soft); color: var(--yellow); }
+    .tl-badge.bot { background: var(--green-soft); color: var(--green); }
+    .tl-badge.fail { background: var(--red-soft); color: var(--red); }
+    .tl-empty {
+      text-align: center; padding: 30px; color: var(--text3); font-size: 12px;
     }
 
-    /* ===== HEADER ===== */
-    .main-header {
-      height: 48px; background: var(--bg-card); backdrop-filter: blur(12px);
-      padding: 0 12px; display: flex; justify-content: space-between; align-items: center;
-      border-bottom: 1px solid var(--border-neon); flex-shrink: 0; z-index: 10;
+    /* ===== AI SKILL TAB ===== */
+    .skills-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
     }
-    .app-logo { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; text-shadow: 0 0 10px var(--neon-cyan-glow); }
-    html.light .app-logo { text-shadow: none; }
-    .header-right { display: flex; align-items: center; gap: 4px; }
-    .status-pill { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-neon); }
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
-    .dot.online { background: var(--neon-green); box-shadow: 0 0 6px var(--neon-green); }
-    .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 6px; border-radius: 6px; transition: all 0.2s; }
-    .icon-btn:hover { color: var(--neon-cyan); background: rgba(0, 240, 255, 0.08); }
+    .skills-title { font-size: 16px; font-weight: 800; }
+    .skills-subtitle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .skills-add-btn {
+      padding: 8px 14px; border-radius: 8px; border: 1px dashed var(--border);
+      background: transparent; color: var(--text2); font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .skills-add-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
-    /* ===== ENGINE BAR ===== */
-    .engine-bar {
-      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-      background: var(--bg-card); border-bottom: 1px solid var(--border-neon); flex-shrink: 0;
+    .skill-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 10px; overflow: hidden; transition: border-color 0.2s;
     }
-    .eb-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .eb-status { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: var(--neon-magenta); letter-spacing: 0.5px; }
-    .eb-status.active { color: var(--neon-green); }
-    .eb-divider { width: 1px; height: 20px; background: var(--border-neon); flex-shrink: 0; }
-    .eb-center { display: flex; gap: 4px; flex-shrink: 0; }
-    .mode-btn {
-      font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 3px 8px;
-      border: 1px solid var(--border-neon); background: transparent; color: var(--text-muted);
-      border-radius: 4px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+    .skill-card:hover { border-color: var(--accent-soft); }
+    .skill-card-head {
+      display: flex; align-items: center; gap: 10px; padding: 14px;
     }
-    .mode-btn:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
-    .mode-btn.active-draft { background: rgba(251, 191, 36, 0.15); border-color: var(--neon-yellow); color: var(--neon-yellow); }
-    .mode-btn.active-auto { background: rgba(0, 255, 102, 0.15); border-color: var(--neon-green); color: var(--neon-green); }
-    .eb-right { display: flex; gap: 8px; margin-left: auto; }
-    .eb-stat { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); }
-    .eb-stat b { color: var(--neon-cyan); font-weight: 600; }
-    .eb-stat.green b { color: var(--neon-green); }
-    .eb-stat.red b { color: var(--neon-magenta); }
-    .eb-stat.yellow b { color: var(--neon-yellow); }
+    .skill-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .skill-icon.search { background: var(--accent-soft); color: var(--accent); }
+    .skill-icon.calc { background: var(--purple-soft); color: var(--purple); }
+    .skill-icon.translate { background: var(--orange-soft); color: var(--orange); }
+    .skill-icon.summarize { background: var(--green-soft); color: var(--green); }
+    .skill-icon.custom { background: var(--yellow-soft); color: var(--yellow); }
+    .skill-meta { flex: 1; min-width: 0; }
+    .skill-name { font-size: 13px; font-weight: 700; }
+    .skill-desc { font-size: 10px; color: var(--text3); margin-top: 2px; }
+    .skill-toggle { flex-shrink: 0; }
+    .skill-card-body { padding: 0 14px 14px; display: none; }
+    .skill-card.expanded .skill-card-body { display: block; }
+    .skill-config-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; border-top: 1px solid var(--border);
+    }
+    .skill-config-label { font-size: 11px; color: var(--text2); }
+    .skill-config-input {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-alt, #0c0e14); color: var(--text); font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; width: 180px; outline: none;
+    }
+    .skill-config-input:focus { border-color: var(--accent); }
+    .skill-expand-btn {
+      padding: 4px 8px; border-radius: 6px; border: none;
+      background: transparent; color: var(--text3); font-size: 10px;
+      cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+    }
+    .skill-expand-btn:hover { color: var(--text); background: var(--bg-hover); }
 
-    /* ===== SWITCH ===== */
-    .switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; inset: 0; background: var(--text-muted); border-radius: 18px; cursor: pointer; transition: 0.3s; }
-    .slider:before { content: ''; position: absolute; height: 14px; width: 14px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.3s; }
-    .switch input:checked + .slider { background: var(--neon-green); }
-    .switch input:checked + .slider:before { transform: translateX(16px); }
+    /* ===== SETTINGS SECTION IN SKILLS TAB ===== */
+    .settings-section {
+      margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .settings-title { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 11px; color: var(--text2); }
+    .setting-input {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-alt, #0c0e14); color: var(--text); font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; width: 200px; outline: none;
+    }
+    .setting-input:focus { border-color: var(--accent); }
+    .setting-select {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-alt, #0c0e14); color: var(--text); font-size: 11px;
+      font-family: inherit; width: 200px; outline: none; cursor: pointer;
+    }
+    .setting-select:focus { border-color: var(--accent); }
 
-    /* ===== TABS ===== */
-    .tab-bar { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-neon); flex-shrink: 0; }
-    .tab-btn { flex: 1; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .tab-btn.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); }
-    .tab-btn:hover { color: var(--neon-cyan); }
-    .tab-btn .badge { background: var(--neon-magenta); color: white; font-size: 8px; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
-
-    /* ===== CONTENT ===== */
-    .content-area { flex: 1; overflow: hidden; position: relative; }
-    .tab-content { display: none; height: 100%; overflow: hidden; flex-direction: column; }
-    .tab-content.active { display: flex; }
-
-    /* ===== SEARCH ===== */
-    .search-bar { padding: 8px; flex-shrink: 0; }
-    .input-box {
-      display: flex; align-items: center; gap: 8px; background: var(--input-bg);
-      border: 1px solid var(--border-neon); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-size: 13px; font-family: 'Space Grotesk', sans-serif;
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .split-row { grid-template-columns: 1fr; }
+      .kpi-grid { gap: 8px; }
+      .kpi-value { font-size: 22px; }
+      .topbar { padding: 8px 12px; }
+      .tab-panel { padding: 10px 12px; }
     }
-    .input-box input { background: none; border: none; outline: none; color: var(--text-main); font-size: 13px; font-family: inherit; flex: 1; }
-    .input-box input::placeholder { color: var(--text-muted); }
-
-    /* ===== CHAT LIST ===== */
-    .chat-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
-    .chat-card {
-      display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px;
-      cursor: pointer; transition: background 0.2s; margin-bottom: 2px;
-    }
-    .chat-card:hover { background: rgba(0, 240, 255, 0.05); }
-    .avatar-box {
-      width: 42px; height: 42px; border-radius: 50%; background: var(--input-bg); border: 1px solid var(--border-neon);
-      display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 16px;
-      overflow: hidden; flex-shrink: 0; position: relative;
-    }
-    .avatar-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s; }
-    .avatar-box img.loaded { opacity: 1; }
-    .chat-info { flex: 1; min-width: 0; }
-    .chat-header-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-    .contact-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .timestamp { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
-    .preview-msg { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
-    .tick { font-size: 10px; }
-    .tick-blue { color: var(--neon-cyan); }
-    .tick-grey { color: var(--text-muted); }
-    .feed-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1px; }
-
-    /* ===== ROOM OVERLAY ===== */
-    .room-overlay {
-      position: absolute; inset: 0; background: var(--bg-cyber); z-index: 20;
-      display: none; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease;
-    }
-    .room-overlay.active { display: flex; transform: translateX(0); }
-    .room-header {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card);
-      border-bottom: 1px solid var(--border-neon); flex-shrink: 0; height: 52px;
-    }
-    .chat-viewport { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-    .msg-bubble {
-      max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word;
-    }
-    .msg-bubble.received { background: var(--msg-received); align-self: flex-start; border-bottom-left-radius: 4px; }
-    .msg-bubble.sent { background: var(--msg-sent); align-self: flex-end; border-bottom-right-radius: 4px; border: 1px solid var(--border-neon); }
-    .msg-bubble.draft-bubble { border-left: 3px solid var(--neon-yellow) !important; opacity: 0.8; }
-    .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted); }
-    .room-footer { display: flex; gap: 8px; padding: 8px; background: var(--bg-card); border-top: 1px solid var(--border-neon); flex-shrink: 0; }
-    .text-input-field { flex: 1; }
-    .text-input-field input {
-      width: 100%; background: var(--input-bg); border: 1px solid var(--border-neon); border-radius: 8px;
-      padding: 10px 12px; color: var(--text-main); font-size: 13px; font-family: inherit; outline: none;
-    }
-    .text-input-field input::placeholder { color: var(--text-muted); }
-    .send-trigger {
-      width: 42px; height: 42px; border-radius: 50%; background: var(--neon-cyan); border: none;
-      color: #05070a; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; flex-shrink: 0;
-    }
-    .send-trigger:hover { box-shadow: 0 0 16px var(--neon-cyan-glow); }
-
-    /* ===== ACTIVITY FEED ===== */
-    .feed-list { flex: 1; overflow-y: auto; padding: 8px; }
-    .feed-item {
-      display: flex; gap: 8px; padding: 8px; border-radius: 6px; margin-bottom: 4px;
-      background: var(--input-bg); border: 1px solid var(--border-neon);
-    }
-    .feed-icon {
-      width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-      font-size: 10px; flex-shrink: 0; background: rgba(0, 255, 102, 0.15); color: var(--neon-green);
-    }
-    .feed-icon.fail { background: rgba(255, 0, 85, 0.15); color: var(--neon-magenta); }
-    .feed-icon.draft { background: rgba(251, 191, 36, 0.15); color: var(--neon-yellow); }
-    .feed-body { flex: 1; min-width: 0; }
-    .feed-name { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
-    .feed-query { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .feed-reply { font-size: 11px; color: var(--neon-green); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .fail-text { color: var(--neon-magenta); }
-    .feed-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
-    .feed-time { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted); }
-    .feed-latency { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--neon-cyan); }
-
-    /* ===== AI SETTINGS MODAL ===== */
-    .modal-overlay {
-      position: absolute; inset: 0; background: rgba(5, 7, 10, 0.92); backdrop-filter: blur(8px);
-      z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px;
-    }
-    .modal-overlay.active { display: flex; }
-    .modal-box {
-      width: 100%; max-height: 85vh; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-neon);
-      border-radius: 12px; padding: 20px;
-    }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .modal-title { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 1px; }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .form-group input, .form-group textarea {
-      width: 100%; background: var(--input-bg); border: 1px solid var(--border-neon); border-radius: 6px;
-      padding: 8px 10px; color: var(--text-main); font-size: 12px; font-family: 'JetBrains Mono', monospace; outline: none; resize: vertical;
-    }
-    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
-    .form-group input:focus, .form-group textarea:focus { border-color: var(--neon-cyan); }
-    .btn-save {
-      width: 100%; padding: 10px; background: var(--neon-cyan); color: #05070a; border: none; border-radius: 6px;
-      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; margin-top: 8px;
-    }
-    .btn-save:hover { box-shadow: 0 0 20px var(--neon-cyan-glow); }
-    .modal-feedback { display: none; padding: 8px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; margin-top: 8px; }
-    .modal-feedback.ok { display: block; background: rgba(0,255,102,0.1); color: var(--neon-green); border: 1px solid var(--neon-green); }
-    .modal-feedback.err { display: block; background: rgba(255,0,85,0.1); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
   </style>
 </head>
 <body>
-<div class="app-container">
-
-  <!-- HEADER -->
-  <div class="main-header">
-    <div class="app-logo"><i class="fa-solid fa-robot"></i> BOT_CORE</div>
-    <div class="header-right">
-      <div class="status-pill"><span id="statusDot" class="dot"></span><span id="statusText">OFFLINE</span></div>
-      <button class="icon-btn" onclick="openAISettings()" title="AI Settings"><i class="fa-solid fa-sliders"></i></button>
-      <button class="icon-btn" onclick="toggleTheme()"><i id="themeIcon" class="fa-solid fa-sun"></i></button>
-    </div>
-  </div>
-
-  <!-- ENGINE BAR -->
-  <div class="engine-bar">
-    <div class="eb-left">
-      <label class="switch"><input type="checkbox" id="autoReplyToggle" onchange="toggleAutoReply()"><span class="slider"></span></label>
-      <span id="engineStatusText" class="eb-status">DISABLED</span>
-    </div>
-    <div class="eb-divider"></div>
-    <div class="eb-center">
-      <button class="mode-btn active-draft" id="btnDraft" onclick="switchSendMode('draft')">DRAFT</button>
-      <button class="mode-btn" id="btnAuto" onclick="switchSendMode('auto')">AUTO</button>
-    </div>
-    <div class="eb-right">
-      <span class="eb-stat green"><b id="statReplied">0</b> sent</span>
-      <span class="eb-stat red"><b id="statFailed">0</b> fail</span>
-      <span class="eb-stat yellow"><b id="statLatency">0</b>ms</span>
-    </div>
-  </div>
-
-  <!-- TABS -->
-  <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('chatTab', this)"><i class="fa-solid fa-comments"></i> PESAN</button>
-    <button class="tab-btn" onclick="switchTab('logTab', this)"><i class="fa-solid fa-signal"></i> LOG</button>
-  </div>
-
-  <!-- CONTENT -->
-  <div class="content-area">
-
-    <!-- CHAT TAB -->
-    <div id="chatTab" class="tab-content active">
-      <div class="search-bar">
-        <div class="input-box">
-          <i class="fa-solid fa-magnifying-glass" style="color: var(--neon-cyan); font-size: 12px;"></i>
-          <input type="text" id="newPhoneInput" placeholder="Ketik nomor baru (+62...)" onkeypress="handleNewChat(event)">
+  <div class="app">
+    <!-- ===== TOP BAR ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <div class="topbar-logo">B</div>
+        <div>
+          <div class="topbar-title">BOT_CORE</div>
+          <div class="topbar-sub" id="uptimeDisplay">00:00:00</div>
         </div>
       </div>
-      <div id="chatList" class="chat-list">
-        <div class="feed-empty"><i class="fa-solid fa-comments"></i>&nbsp; NO_ACTIVE_CHATS</div>
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">
+          <i class="fas fa-chart-line"></i> Dashboard
+        </button>
+        <button class="tab-btn" data-tab="skills">
+          <i class="fas fa-brain"></i> AI Skill
+        </button>
       </div>
-      <!-- ROOM OVERLAY -->
-      <div id="roomOverlay" class="room-overlay">
-        <div class="room-header">
-          <button class="icon-btn" onclick="closeRoomOverlay()"><i class="fa-solid fa-chevron-left"></i></button>
-          <div id="roomAvatar" class="avatar-box" style="width: 32px; height: 32px; font-size: 12px;"><i class="fa-solid fa-user"></i></div>
-          <div style="flex: 1; overflow: hidden;">
-            <div id="roomTitle" class="contact-title" style="font-size: 13px;">Target</div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--neon-green);">ONLINE</div>
+    </div>
+
+    <!-- ===== CONTENT ===== -->
+    <div class="content">
+
+      <!-- ==================== TAB: DASHBOARD ==================== -->
+      <div class="tab-panel active" id="panel-dashboard">
+
+        <!-- KPI 2x2 -->
+        <div class="kpi-grid">
+          <div class="kpi k-in">
+            <div class="kpi-top">
+              <span class="kpi-label">Incoming</span>
+              <div class="kpi-icon"><i class="fas fa-arrow-down"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiIncoming">0</div>
+            <div class="kpi-sub">pesan masuk</div>
+          </div>
+          <div class="kpi k-draft">
+            <div class="kpi-top">
+              <span class="kpi-label">Draft</span>
+              <div class="kpi-icon"><i class="fas fa-eye"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiDraft">0</div>
+            <div class="kpi-sub">preview only</div>
+          </div>
+          <div class="kpi k-auto">
+            <div class="kpi-top">
+              <span class="kpi-label">Auto Sent</span>
+              <div class="kpi-icon"><i class="fas fa-paper-plane"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiAuto">0</div>
+            <div class="kpi-sub">terkirim</div>
+          </div>
+          <div class="kpi k-fail">
+            <div class="kpi-top">
+              <span class="kpi-label">Failed</span>
+              <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            </div>
+            <div class="kpi-value" id="kpiFail">0</div>
+            <div class="kpi-sub">gagal</div>
           </div>
         </div>
-        <div id="chatViewport" class="chat-viewport"></div>
-        <div class="room-footer">
-          <div class="text-input-field">
-            <input type="text" id="msgInput" placeholder="Ketik pesan..." onkeypress="handleKeyPress(event)" autocomplete="off">
+
+        <!-- Connection Status (FULL WIDTH) -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><i class="fas fa-plug" style="margin-right:6px;color:var(--accent)"></i>Connection</span>
+            <span class="card-badge" id="connBadge" style="background:var(--red-soft);color:var(--red)">OFFLINE</span>
           </div>
-          <button class="send-trigger" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+          <div class="card-body">
+            <div class="conn-row">
+              <div class="conn-dot" id="connDot"></div>
+              <div class="conn-info">
+                <div class="conn-status" id="connStatus">Menunggu koneksi...</div>
+                <div class="conn-detail" id="connDetail">—</div>
+              </div>
+              <div class="conn-actions">
+                <span class="card-badge" id="connAIBadge" style="background:var(--red-soft);color:var(--red);font-size:10px">AI OFF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Split Row: Mode Info + AI Engine -->
+        <div class="split-row">
+          <!-- Mode Info -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="fas fa-sliders-h" style="margin-right:6px;color:var(--yellow)"></i>Mode</span>
+            </div>
+            <div class="card-body">
+              <div class="mode-toggle-row">
+                <span class="mode-toggle-label">Auto-Reply</span>
+                <div class="toggle" id="toggleAI" onclick="toggleAutoReply()"></div>
+              </div>
+              <div class="mode-toggle-row">
+                <span class="mode-toggle-label">Mode Draft</span>
+                <div class="toggle on" id="toggleMode" onclick="toggleSendMode()"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Engine -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title"><i class="fas fa-microchip" style="margin-right:6px;color:var(--purple)"></i>AI Engine</span>
+            </div>
+            <div class="card-body">
+              <div class="ai-info-row">
+                <span class="ai-info-label">Model</span>
+                <span class="ai-info-value" id="aiModel">—</span>
+              </div>
+              <div class="ai-info-row">
+                <span class="ai-info-label">Temp</span>
+                <span class="ai-info-value" id="aiTemp">—</span>
+              </div>
+              <div class="ai-info-row">
+                <span class="ai-info-label">Latency</span>
+                <span class="ai-info-value" id="aiLatency">— ms</span>
+              </div>
+              <div class="ai-info-row">
+                <span class="ai-info-label">Skills</span>
+                <span class="ai-info-value" id="aiSkillCount">0 aktif</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline (FULL WIDTH — kontak dihapus, timeline diperluas) -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><i class="fas fa-stream" style="margin-right:6px;color:var(--green)"></i>Timeline</span>
+            <span class="card-badge" id="timelineCount" style="background:var(--green-soft);color:var(--green)">0 events</span>
+          </div>
+          <div class="card-body">
+            <div class="timeline" id="timeline">
+              <div class="tl-empty"><i class="fas fa-inbox"></i> Belum ada aktivitas</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB: AI SKILLS ==================== -->
+      <div class="tab-panel" id="panel-skills">
+        <div class="skills-header">
+          <div>
+            <div class="skills-title">AI Skills</div>
+            <div class="skills-subtitle">Kelola kemampuan AI bot — aktifkan/nonaktifkan skill sesuai kebutuhan</div>
+          </div>
+          <button class="skills-add-btn" onclick="showAddSkillModal()">
+            <i class="fas fa-plus"></i> Tambah Skill
+          </button>
+        </div>
+
+        <!-- Skill Cards -->
+        <div id="skillsList">
+          <!-- Web Search (PRIMARY) -->
+          <div class="skill-card" data-skill="web_search" id="skill-web_search">
+            <div class="skill-card-head">
+              <div class="skill-icon search"><i class="fas fa-globe"></i></div>
+              <div class="skill-meta">
+                <div class="skill-name">Web Search</div>
+                <div class="skill-desc">Cari informasi terkini dari internet — skill utama bot</div>
+              </div>
+              <button class="skill-expand-btn" onclick="toggleSkillExpand('web_search')">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="skill-toggle">
+                <div class="toggle" id="toggle-skill-web_search" onclick="toggleSkill('web_search')"></div>
+              </div>
+            </div>
+            <div class="skill-card-body">
+              <div class="skill-config-row">
+                <span class="skill-config-label">Provider</span>
+                <select class="setting-select" id="cfg-search-provider" style="width:180px" onchange="saveSkillConfig('web_search')">
+                  <option value="google">Google (SerpAPI)</option>
+                  <option value="duckduckgo">DuckDuckGo (Free)</option>
+                  <option value="bing">Bing (Azure)</option>
+                </select>
+              </div>
+              <div class="skill-config-row">
+                <span class="skill-config-label">API Key</span>
+                <input class="skill-config-input" type="password" id="cfg-search-apikey" placeholder="Optional (untuk paid API)" style="width:180px" onchange="saveSkillConfig('web_search')">
+              </div>
+              <div class="skill-config-row">
+                <span class="skill-config-label">Max Results</span>
+                <input class="skill-config-input" type="number" id="cfg-search-max" value="5" min="1" max="10" style="width:180px" onchange="saveSkillConfig('web_search')">
+              </div>
+            </div>
+          </div>
+
+          <!-- Calculator -->
+          <div class="skill-card" data-skill="calculator" id="skill-calculator">
+            <div class="skill-card-head">
+              <div class="skill-icon calc"><i class="fas fa-calculator"></i></div>
+              <div class="skill-meta">
+                <div class="skill-name">Calculator</div>
+                <div class="skill-desc">Hitung ekspresi matematika otomatis</div>
+              </div>
+              <button class="skill-expand-btn" onclick="toggleSkillExpand('calculator')">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="skill-toggle">
+                <div class="toggle" id="toggle-skill-calculator" onclick="toggleSkill('calculator')"></div>
+              </div>
+            </div>
+            <div class="skill-card-body">
+              <div class="skill-config-row">
+                <span class="skill-config-label">Presisi</span>
+                <input class="skill-config-input" type="number" id="cfg-calc-precision" value="6" min="1" max="15" style="width:180px" onchange="saveSkillConfig('calculator')">
+              </div>
+            </div>
+          </div>
+
+          <!-- Translator -->
+          <div class="skill-card" data-skill="translator" id="skill-translator">
+            <div class="skill-card-head">
+              <div class="skill-icon translate"><i class="fas fa-language"></i></div>
+              <div class="skill-meta">
+                <div class="skill-name">Translator</div>
+                <div class="skill-desc">Deteksi & terjemahkan bahasa otomatis</div>
+              </div>
+              <button class="skill-expand-btn" onclick="toggleSkillExpand('translator')">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="skill-toggle">
+                <div class="toggle" id="toggle-skill-translator" onclick="toggleSkill('translator')"></div>
+              </div>
+            </div>
+            <div class="skill-card-body">
+              <div class="skill-config-row">
+                <span class="skill-config-label">Default Target</span>
+                <select class="setting-select" id="cfg-translate-target" style="width:180px" onchange="saveSkillConfig('translator')">
+                  <option value="id">Indonesia</option>
+                  <option value="en">English</option>
+                  <option value="ja">Japanese</option>
+                  <option value="ko">Korean</option>
+                  <option value="auto">Auto Detect</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summarizer -->
+          <div class="skill-card" data-skill="summarizer" id="skill-summarizer">
+            <div class="skill-card-head">
+              <div class="skill-icon summarize"><i class="fas fa-compress-alt"></i></div>
+              <div class="skill-meta">
+                <div class="skill-name">Summarizer</div>
+                <div class="skill-desc">Ringkas teks panjang menjadi poin-poin utama</div>
+              </div>
+              <button class="skill-expand-btn" onclick="toggleSkillExpand('summarizer')">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+              <div class="skill-toggle">
+                <div class="toggle" id="toggle-skill-summarizer" onclick="toggleSkill('summarizer')"></div>
+              </div>
+            </div>
+            <div class="skill-card-body">
+              <div class="skill-config-row">
+                <span class="skill-config-label">Max Sentences</span>
+                <input class="skill-config-input" type="number" id="cfg-summary-max" value="5" min="1" max="20" style="width:180px" onchange="saveSkillConfig('summarizer')">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Settings -->
+        <div class="settings-section">
+          <div class="settings-title"><i class="fas fa-cog" style="margin-right:6px"></i>Pengaturan AI</div>
+          <div class="setting-row">
+            <span class="setting-label">API Key</span>
+            <input class="setting-input" type="password" id="settingApiKey" placeholder="nvapi-..." onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Base URL</span>
+            <input class="setting-input" type="text" id="settingBaseUrl" placeholder="https://integrate.api.nvidia.com/v1/chat/completions" onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Model</span>
+            <input class="setting-input" type="text" id="settingModel" placeholder="google/gemma-4-31b-it" onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Temperature</span>
+            <input class="setting-input" type="number" id="settingTemp" step="0.1" min="0" max="2" onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Top P</span>
+            <input class="setting-input" type="number" id="settingTopP" step="0.05" min="0" max="1" onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Max Tokens</span>
+            <input class="setting-input" type="number" id="settingMaxTokens" min="256" max="65536" onchange="saveAISetting()">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">System Prompt</span>
+          </div>
+          <div style="padding: 4px 0 10px;">
+            <textarea id="settingSystemPrompt" rows="4" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-alt,#0c0e14);color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;resize:vertical;outline:none;" onchange="saveAISetting()" placeholder="Kamu adalah asisten WhatsApp yang sopan..."></textarea>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Trigger Prefix</span>
+            <input class="setting-input" type="text" id="settingTrigger" placeholder="Kosongkan = semua pesan" onchange="saveAISetting()">
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- LOG TAB -->
-    <div id="logTab" class="tab-content">
-      <div id="activityFeed" class="feed-list">
-        <div class="feed-empty"><i class="fa-solid fa-satellite-dish"></i>&nbsp; MENUNGGU AKTIVITAS...</div>
-      </div>
     </div>
   </div>
 
-  <!-- AI SETTINGS MODAL -->
-  <div id="aiModal" class="modal-overlay" onclick="if(event.target===this)closeAISettings()">
-    <div class="modal-box">
-      <div class="modal-header">
-        <span class="modal-title"><i class="fa-solid fa-sliders"></i> AI CONFIG</span>
-        <button class="icon-btn" onclick="closeAISettings()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="form-group">
-        <label>API_KEY</label>
-        <input type="password" id="apiKeyInput" placeholder="nvapi-... atau sk-...">
-      </div>
-      <div class="form-group">
-        <label>BASE_URL</label>
-        <input type="text" id="apiBaseUrlInput" placeholder="https://integrate.api.nvidia.com/v1/chat/completions">
-      </div>
-      <div class="form-group">
-        <label>MODEL</label>
-        <input type="text" id="modelInput" placeholder="nvidia/nemotron-3-ultra-550b-a55b">
-      </div>
-      <div class="form-group">
-        <label>SYSTEM_PROMPT</label>
-        <textarea id="systemPromptInput" rows="4" placeholder="Definisikan perilaku AI..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>TRIGGER_PREFIX <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(kosongkan = balas semua)</span></label>
-        <input type="text" id="aiTriggerInput" placeholder="Contoh: ! atau .bot">
-      </div>
-      <div id="saveAiFeedback" class="modal-feedback"></div>
-      <button class="btn-save" onclick="saveAiSettings()">SIMPAN KONFIGURASI</button>
-    </div>
-  </div>
+  <script>
+    // ==================== SOCKET.IO ====================
+    const socket = io();
+    let aiEnabled = false;
+    let sendMode = 'draft';
+    let stats = { incoming: 0, replied: 0, failed: 0, uptime: 0, avgLatency: 0 };
+    const nameCache = {};
+    const ppCache = {};
+    const MAX_TIMELINE = 80;
+    let timelineEvents = [];
 
-</div>
+    // ==================== TAB NAVIGATION ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = document.getElementById('panel-' + btn.dataset.tab);
+        if (panel) panel.classList.add('active');
+      });
+    });
 
-<script>
-  const socket = io();
-  let chats = {};
-  let activeJid = null;
-  let autoReplyEnabled = false;
-  let currentSendMode = 'draft';
-  let ppCache = {};
-  let sessionUptimeStart = Date.now();
-  let activityLogs = [];
-  const MAX_FEED = 50;
+    // ==================== SOCKET EVENTS ====================
+    socket.on('status', (status) => {
+      updateConnectionUI(status);
+    });
 
-  // ==================== THEME ====================
-  function toggleTheme() {
-    document.documentElement.classList.toggle('light');
-    const isLight = document.documentElement.classList.contains('light');
-    document.getElementById('themeIcon').className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-    localStorage.setItem('theme', isLight ? 'light' : 'dark');
-  }
-  if (localStorage.getItem('theme') === 'light') {
-    document.documentElement.classList.add('light');
-    document.getElementById('themeIcon').className = 'fa-solid fa-moon';
-  }
+    socket.on('load_history', (messages) => {
+      messages.forEach(msg => addTimelineEvent(msg));
+    });
 
-  // ==================== TABS ====================
-  function switchTab(tabId, btn) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
-    btn.classList.add('active');
-  }
+    socket.on('new_message', (msg) => {
+      addTimelineEvent(msg);
+    });
 
-  // ==================== ENGINE CONTROLS ====================
-  function toggleAutoReply() {
-    const cb = document.getElementById('autoReplyToggle');
-    autoReplyEnabled = cb.checked;
-    const el = document.getElementById('engineStatusText');
-    el.innerText = autoReplyEnabled ? 'ACTIVE' : 'DISABLED';
-    el.className = 'eb-status' + (autoReplyEnabled ? ' active' : '');
-    socket.emit('toggle_autoreply', { enabled: autoReplyEnabled });
-  }
+    socket.on('ai_config', (config) => {
+      updateAIConfigUI(config);
+    });
 
-  function switchSendMode(mode) {
-    currentSendMode = mode;
-    document.getElementById('btnDraft').className = 'mode-btn' + (mode === 'draft' ? ' active-draft' : '');
-    document.getElementById('btnAuto').className = 'mode-btn' + (mode === 'auto' ? ' active-auto' : '');
-    socket.emit('set_send_mode', { mode });
-  }
+    socket.on('session_stats', (newStats) => {
+      stats = newStats;
+      updateStatsUI();
+    });
 
-  // ==================== AI MODAL ====================
-  function openAISettings() { document.getElementById('aiModal').classList.add('active'); }
-  function closeAISettings() { document.getElementById('aiModal').classList.remove('active'); }
+    socket.on('name_cache', (names) => {
+      Object.assign(nameCache, names);
+    });
 
-  // ==================== SOCKET EVENTS ====================
-  socket.on('status', (status) => {
-    const dot = document.getElementById('statusDot');
-    const txt = document.getElementById('statusText');
-    if (status === 'open') { dot.className = 'dot online'; txt.style.color = 'var(--neon-green)'; txt.textContent = 'LIVE'; sessionUptimeStart = Date.now(); }
-    else if (status === 'connecting') { dot.className = 'dot'; txt.style.color = 'var(--neon-yellow)'; txt.textContent = 'CONNECTING'; }
-    else { dot.className = 'dot'; txt.style.color = 'var(--text-muted)'; txt.textContent = 'OFFLINE'; }
-  });
+    socket.on('pp_cache', (pps) => {
+      Object.assign(ppCache, pps);
+    });
 
-  socket.on('load_history', (messages) => { messages.forEach(msg => appendMessageToLocal(msg)); renderChatList(); });
+    socket.on('auto_reply_log', (log) => {
+      if (log.type === 'success') {
+        stats.replied++;
+      } else if (log.type === 'fail') {
+        stats.failed++;
+      } else if (log.type === 'draft') {
+        stats.replied++; // count as processed
+      }
+      updateStatsUI();
 
-  socket.on('new_message', (msg) => { appendMessageToLocal(msg); renderChatList(); if (activeJid === msg.from) renderMessages(activeJid); });
+      // Add to timeline
+      if (log.type === 'success') {
+        addTimelineEvent({
+          type: 'system',
+          pushName: 'BOT',
+          text: `Auto-reply terkirim ke ${log.name || log.from}: "${log.reply}"`,
+          timestamp: log.ts || Date.now(),
+          systemType: 'sent'
+        });
+      } else if (log.type === 'draft') {
+        addTimelineEvent({
+          type: 'system',
+          pushName: 'BOT (DRAFT)',
+          text: `Draft untuk ${log.name || log.from}: "${log.reply}"`,
+          timestamp: log.ts || Date.now(),
+          systemType: 'draft'
+        });
+      } else if (log.type === 'fail') {
+        addTimelineEvent({
+          type: 'system',
+          pushName: 'ERROR',
+          text: `Gagal reply ke ${log.name || log.from}: ${log.error}`,
+          timestamp: log.ts || Date.now(),
+          systemType: 'error'
+        });
+      }
+    });
 
-  socket.on('pp_cache', (data) => { if (!data) return; ppCache = { ...ppCache, ...data }; renderChatList(); if (activeJid) setRoomPP(activeJid); });
+    socket.on('skill_usage', (data) => {
+      addTimelineEvent({
+        type: 'system',
+        pushName: 'SKILL',
+        text: `${data.skill} digunakan: ${data.query || data.detail || ''}`,
+        timestamp: Date.now(),
+        systemType: 'skill'
+      });
+    });
 
-  socket.on('profile_picture', (data) => { if (data?.jid?.url) { ppCache[data.jid] = data.url; renderChatList(); if (activeJid === data.jid) setRoomPP(data.jid); } });
+    // Sync skills config from server
+    socket.on('skills_config', (serverSkills) => {
+      skillsConfig = serverSkills;
+      applySkillsToUI();
+    });
 
-  socket.on('ai_config', (cfg) => {
-    if (!cfg) return;
-    document.getElementById('apiKeyInput').value = cfg.apiKey === '***' ? '' : (cfg.apiKey || '');
-    document.getElementById('apiBaseUrlInput').value = cfg.apiBaseUrl || '';
-    document.getElementById('modelInput').value = cfg.model || '';
-    document.getElementById('systemPromptInput').value = cfg.systemPrompt || '';
-    document.getElementById('aiTriggerInput').value = cfg.triggerPrefix || '';
-    const cb = document.getElementById('autoReplyToggle');
-    cb.checked = cfg.enabled;
-    autoReplyEnabled = cfg.enabled;
-    const el = document.getElementById('engineStatusText');
-    el.innerText = cfg.enabled ? 'ACTIVE' : 'DISABLED';
-    el.className = 'eb-status' + (cfg.enabled ? ' active' : '');
-    const mode = cfg.sendMode || 'draft';
-    currentSendMode = mode;
-    document.getElementById('btnDraft').className = 'mode-btn' + (mode === 'draft' ? ' active-draft' : '');
-    document.getElementById('btnAuto').className = 'mode-btn' + (mode === 'auto' ? ' active-auto' : '');
-  });
+    // ==================== CONNECTION UI ====================
+    function updateConnectionUI(status) {
+      const dot = document.getElementById('connDot');
+      const statusEl = document.getElementById('connStatus');
+      const detailEl = document.getElementById('connDetail');
+      const badge = document.getElementById('connBadge');
 
-  socket.on('session_stats', (s) => {
-    if (!s) return;
-    document.getElementById('statReplied').textContent = s.replied || 0;
-    document.getElementById('statFailed').textContent = s.failed || 0;
-    document.getElementById('statLatency').textContent = s.avgLatency || 0;
-    if (s.startTime) sessionUptimeStart = s.startTime;
-  });
-
-  socket.on('auto_reply_log', (entry) => {
-    if (!entry) return;
-    activityLogs.unshift(entry);
-    if (activityLogs.length > MAX_FEED) activityLogs.pop();
-    renderActivityFeed();
-  });
-
-  socket.on('name_cache', (data) => {
-    if (!data) return;
-    for (const [jid, name] of Object.entries(data)) {
-      if (chats[jid] && name?.trim() && !/^\d+$/.test(name.trim())) {
-        if (isRawName(chats[jid].name)) chats[jid].name = name.trim();
+      dot.className = 'conn-dot ' + status;
+      if (status === 'open') {
+        statusEl.textContent = 'Terhubung';
+        statusEl.style.color = 'var(--green)';
+        detailEl.textContent = 'WhatsApp aktif & siap menerima pesan';
+        badge.textContent = 'ONLINE';
+        badge.style.background = 'var(--green-soft)';
+        badge.style.color = 'var(--green)';
+      } else if (status === 'connecting') {
+        statusEl.textContent = 'Menghubungkan...';
+        statusEl.style.color = 'var(--yellow)';
+        detailEl.textContent = 'Menunggu koneksi WhatsApp...';
+        badge.textContent = 'CONNECTING';
+        badge.style.background = 'var(--yellow-soft)';
+        badge.style.color = 'var(--yellow)';
+      } else {
+        statusEl.textContent = 'Offline';
+        statusEl.style.color = 'var(--red)';
+        detailEl.textContent = 'Tidak terhubung ke WhatsApp';
+        badge.textContent = 'OFFLINE';
+        badge.style.background = 'var(--red-soft)';
+        badge.style.color = 'var(--red)';
       }
     }
-    renderChatList();
-    if (activeJid && data[activeJid] && !isRawName(data[activeJid])) document.getElementById('roomTitle').innerText = data[activeJid];
-  });
 
-  // ==================== AVATAR ====================
-  function setRoomPP(jid) {
-    const box = document.getElementById('roomAvatar');
-    const url = ppCache[jid];
-    if (!url || !box) return;
-    let img = box.querySelector('img');
-    if (!img) { img = document.createElement('img'); box.prepend(img); }
-    img.onload = () => img.classList.add('loaded');
-    img.onerror = () => img.remove();
-    img.src = url;
-  }
-
-  // ==================== NAME HELPERS ====================
-  function isRawName(name) { if (!name?.trim()) return true; const n = name.trim(); return /^\+?\d+$/.test(n) || n.includes('@'); }
-  function stripJid(jid) { return jid.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, ''); }
-
-  // ==================== CHAT DATA ====================
-  function appendMessageToLocal(msg) {
-    const jid = msg.from; if (!jid) return;
-    if (!chats[jid]) {
-      const fb = msg.pushName && !isRawName(msg.pushName) ? msg.pushName : stripJid(jid);
-      chats[jid] = { name: fb, isGroup: jid.endsWith('@g.us'), messages: [] };
-    } else if (msg.pushName?.trim() && !isRawName(msg.pushName)) {
-      if (isRawName(chats[jid].name)) chats[jid].name = msg.pushName.trim();
+    // ==================== STATS UI ====================
+    function updateStatsUI() {
+      document.getElementById('kpiIncoming').textContent = stats.incoming || 0;
+      document.getElementById('kpiAuto').textContent = stats.replied || 0;
+      document.getElementById('kpiFail').textContent = stats.failed || 0;
+      // Count drafts from timeline
+      const drafts = timelineEvents.filter(e => e.systemType === 'draft').length;
+      document.getElementById('kpiDraft').textContent = drafts;
+      // Latency
+      document.getElementById('aiLatency').textContent = (stats.avgLatency || 0) + ' ms';
     }
-    chats[jid].messages.push(msg);
-    chats[jid].messages.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-  }
 
-  function getTickIcon(s) {
-    if (s === 3 || s === 'read') return '<i class="fa-solid fa-check-double tick tick-blue"></i>';
-    if (s === 2 || s === 'delivered') return '<i class="fa-solid fa-check-double tick tick-grey"></i>';
-    return '<i class="fa-solid fa-check tick tick-grey"></i>';
-  }
+    // ==================== UPTIME ====================
+    setInterval(() => {
+      if (!stats.uptime) return;
+      const s = Math.floor(stats.uptime / 1000);
+      const h = String(Math.floor(s / 3600)).padStart(2, '0');
+      const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+      const sec = String(s % 60).padStart(2, '0');
+      document.getElementById('uptimeDisplay').textContent = `${h}:${m}:${sec}`;
+      stats.uptime += 1000;
+    }, 1000);
 
-  function renderChatList() {
-    const el = document.getElementById('chatList');
-    const sorted = Object.keys(chats).sort((a, b) => {
-      const la = chats[a].messages[chats[a].messages.length - 1]?.timestamp || 0;
-      const lb = chats[b].messages[chats[b].messages.length - 1]?.timestamp || 0;
-      return Number(lb) - Number(la);
-    });
-    if (sorted.length === 0) return;
-    el.innerHTML = '';
-    sorted.forEach(jid => {
-      const chat = chats[jid]; const last = chat.messages[chat.messages.length - 1];
-      const tick = last?.isMe ? getTickIcon(last.status || 3) : '';
-      const item = document.createElement('div'); item.className = 'chat-card'; item.onclick = () => openRoomOverlay(jid);
-      const ppHtml = ppCache[jid] ? `<img src="${ppCache[jid]}" onload="this.classList.add('loaded')" onerror="this.remove()">` : '';
-      item.innerHTML = `<div class="avatar-box"><i class="fa-solid ${chat.isGroup ? 'fa-users' : 'fa-user'}"></i>${ppHtml}</div>
-        <div class="chat-info"><div class="chat-header-line"><span class="contact-title">${chat.name}</span><span class="timestamp">${last ? new Date(Number(last.timestamp)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span></div><div class="preview-msg">${tick} <span>${last ? last.text : ''}</span></div></div>`;
-      el.appendChild(item);
-    });
-  }
+    // ==================== AI CONFIG UI ====================
+    function updateAIConfigUI(config) {
+      aiEnabled = config.enabled || false;
+      sendMode = config.sendMode || 'draft';
 
-  function openRoomOverlay(jid) {
-    activeJid = jid;
-    document.getElementById('roomTitle').innerText = chats[jid]?.name || jid;
-    setRoomPP(jid); renderMessages(jid);
-    const overlay = document.getElementById('roomOverlay'); overlay.style.display = 'flex'; requestAnimationFrame(() => overlay.classList.add('active'));
-  }
-  function closeRoomOverlay() {
-    activeJid = null;
-    const overlay = document.getElementById('roomOverlay'); overlay.classList.remove('active'); setTimeout(() => overlay.style.display = 'none', 250);
-  }
+      document.getElementById('aiModel').textContent = config.model || '—';
+      document.getElementById('aiTemp').textContent = config.temperature ?? '—';
+      document.getElementById('settingApiKey').value = config.apiKey || '';
+      document.getElementById('settingBaseUrl').value = config.apiBaseUrl || '';
+      document.getElementById('settingModel').value = config.model || '';
+      document.getElementById('settingTemp').value = config.temperature ?? '';
+      document.getElementById('settingTopP').value = config.topP ?? '';
+      document.getElementById('settingMaxTokens').value = config.maxTokens || '';
+      document.getElementById('settingSystemPrompt').value = config.systemPrompt || '';
+      document.getElementById('settingTrigger').value = config.triggerPrefix || '';
 
-  function renderMessages(jid) {
-    const vp = document.getElementById('chatViewport'); vp.innerHTML = '';
-    (chats[jid]?.messages || []).forEach(msg => {
-      const bubble = document.createElement('div');
-      bubble.className = `msg-bubble ${msg.isMe ? 'sent' : 'received'}${msg.isDraft ? ' draft-bubble' : ''}`;
-      const t = new Date(Number(msg.timestamp || Date.now())).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-      const tick = msg.isMe ? getTickIcon(msg.status || 3) : '';
-      const draftTag = msg.isDraft ? '<span style="color:var(--neon-yellow);font-size:8px;font-family:JetBrains Mono,monospace;margin-left:4px;">DRAFT</span>' : '';
-      bubble.innerHTML = `${msg.text}${draftTag}<div class="msg-meta"><span>${t}</span>${tick}</div>`;
-      vp.appendChild(bubble);
-    });
-    vp.scrollTop = vp.scrollHeight;
-  }
-
-  function sendMessage() {
-    const input = document.getElementById('msgInput'); const text = input.value.trim();
-    if (!text || !activeJid) return;
-    socket.emit('send_message', { to: activeJid, message: text }, (res) => { if (res?.success) input.value = ''; });
-  }
-  function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
-  function handleNewChat(e) {
-    if (e.key === 'Enter') {
-      let phone = e.target.value.replace(/[^0-9]/g, ''); if (!phone) return;
-      const jid = `${phone}@s.whatsapp.net`;
-      if (!chats[jid]) chats[jid] = { name: `+${phone}`, isGroup: false, messages: [] };
-      e.target.value = ''; openRoomOverlay(jid);
+      // Mode UI
+      updateModeUI();
+      // AI toggle
+      const toggleAI = document.getElementById('toggleAI');
+      if (aiEnabled) toggleAI.classList.add('on'); else toggleAI.classList.remove('on');
+      // Connection badge
+      const aiBadge = document.getElementById('connAIBadge');
+      if (aiEnabled) {
+        aiBadge.textContent = 'AI ON';
+        aiBadge.style.background = 'var(--green-soft)';
+        aiBadge.style.color = 'var(--green)';
+      } else {
+        aiBadge.textContent = 'AI OFF';
+        aiBadge.style.background = 'var(--red-soft)';
+        aiBadge.style.color = 'var(--red)';
+      }
     }
-  }
 
-  // ==================== ACTIVITY FEED ====================
-  function renderActivityFeed() {
-    const el = document.getElementById('activityFeed');
-    if (activityLogs.length === 0) { el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish"></i>&nbsp; MENUNGGU AKTIVITAS...</div>'; return; }
-    el.innerHTML = activityLogs.map(e => {
-      const t = new Date(e.ts || Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      let iconClass, iconFA;
-      if (e.type === 'draft') { iconClass = 'draft'; iconFA = 'fa-pen'; }
-      else if (e.type === 'success') { iconClass = ''; iconFA = 'fa-check'; }
-      else { iconClass = 'fail'; iconFA = 'fa-xmark'; }
-      let replyHtml;
-      if (e.type === 'draft') replyHtml = `<div class="feed-reply" style="border-left:2px solid var(--neon-yellow);padding-left:6px;">${escHtml(e.reply||'')}</div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--neon-yellow);margin-top:2px;">DRAFT</div>`;
-      else if (e.type === 'success') replyHtml = `<div class="feed-reply">${escHtml(e.reply||'')}</div>`;
-      else replyHtml = `<div class="feed-reply fail-text">${escHtml(e.error||'Unknown')}</div>`;
-      const latHtml = e.latency ? `<div class="feed-latency">${e.latency}ms</div>` : '';
-      return `<div class="feed-item"><div class="feed-icon ${iconClass}"><i class="fa-solid ${iconFA}"></i></div><div class="feed-body"><div class="feed-name">${escHtml(e.name||'?')}</div><div class="feed-query">${escHtml(e.query||'')}</div>${replyHtml}</div><div class="feed-meta"><div class="feed-time">${t}</div>${latHtml}</div></div>`;
-    }).join('');
-  }
+    function updateModeUI() {
+      const toggleMode = document.getElementById('toggleMode');
+      // Draft = toggle ON, Auto = toggle OFF
+      if (sendMode === 'draft') {
+        toggleMode.classList.add('on');
+      } else {
+        toggleMode.classList.remove('on');
+      }
+    }
 
-  function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    // ==================== ACTIONS ====================
+    function toggleAutoReply() {
+      aiEnabled = !aiEnabled;
+      socket.emit('toggle_autoreply', { enabled: aiEnabled });
+      const toggleAI = document.getElementById('toggleAI');
+      if (aiEnabled) toggleAI.classList.add('on'); else toggleAI.classList.remove('on');
+      const aiBadge = document.getElementById('connAIBadge');
+      if (aiEnabled) {
+        aiBadge.textContent = 'AI ON';
+        aiBadge.style.background = 'var(--green-soft)';
+        aiBadge.style.color = 'var(--green)';
+      } else {
+        aiBadge.textContent = 'AI OFF';
+        aiBadge.style.background = 'var(--red-soft)';
+        aiBadge.style.color = 'var(--red)';
+      }
+    }
 
-  function saveAiSettings() {
-    socket.emit('save_ai_config', {
-      apiKey: document.getElementById('apiKeyInput').value,
-      apiBaseUrl: document.getElementById('apiBaseUrlInput').value,
-      model: document.getElementById('modelInput').value,
-      systemPrompt: document.getElementById('systemPromptInput').value,
-      triggerPrefix: document.getElementById('aiTriggerInput').value,
-    }, (res) => {
-      const fb = document.getElementById('saveAiFeedback');
-      if (res?.success) { fb.className = 'modal-feedback ok'; fb.innerText = 'Tersimpan!'; }
-      else { fb.className = 'modal-feedback err'; fb.innerText = 'Gagal!'; }
-      setTimeout(() => { fb.className = 'modal-feedback'; }, 3000);
-    });
-  }
-</script>
+    function toggleSendMode() {
+      sendMode = sendMode === 'draft' ? 'auto' : 'draft';
+      socket.emit('set_send_mode', { mode: sendMode });
+      updateModeUI();
+    }
+
+    function saveAISetting() {
+      const data = {
+        apiKey: document.getElementById('settingApiKey').value,
+        apiBaseUrl: document.getElementById('settingBaseUrl').value,
+        model: document.getElementById('settingModel').value,
+        temperature: parseFloat(document.getElementById('settingTemp').value),
+        topP: parseFloat(document.getElementById('settingTopP').value),
+        maxTokens: parseInt(document.getElementById('settingMaxTokens').value),
+        systemPrompt: document.getElementById('settingSystemPrompt').value,
+        triggerPrefix: document.getElementById('settingTrigger').value,
+      };
+      socket.emit('save_ai_config', data, (res) => {
+        if (res && res.success) {
+          showToast('Config tersimpan');
+        }
+      });
+    }
+
+    // ==================== TIMELINE ====================
+    function getDisplayName(jid, pushName) {
+      if (nameCache[jid]) return nameCache[jid];
+      if (pushName && pushName.trim() && !/^\d+$/.test(pushName.trim())) return pushName;
+      return jid.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '');
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function addTimelineEvent(msg) {
+      const name = getDisplayName(msg.from, msg.pushName);
+      const time = formatTime(msg.timestamp);
+      const text = escapeHtml(msg.text || '');
+
+      let cssClass = 'incoming';
+      let badge = '';
+      let avatarContent = '<i class="fas fa-user"></i>';
+
+      if (msg.isMe && !msg.isDraft) {
+        cssClass = 'sent';
+        badge = '<span class="tl-badge bot">BOT</span>';
+        avatarContent = '<i class="fas fa-robot"></i>';
+      } else if (msg.isDraft) {
+        cssClass = 'draft';
+        badge = '<span class="tl-badge draft">DRAFT</span>';
+        avatarContent = '<i class="fas fa-eye"></i>';
+      } else if (msg.systemType === 'sent') {
+        cssClass = 'sent';
+        badge = '<span class="tl-badge bot">SENT</span>';
+        avatarContent = '<i class="fas fa-check"></i>';
+      } else if (msg.systemType === 'draft') {
+        cssClass = 'draft';
+        badge = '<span class="tl-badge draft">DRAFT</span>';
+        avatarContent = '<i class="fas fa-eye"></i>';
+      } else if (msg.systemType === 'error') {
+        cssClass = 'error';
+        badge = '<span class="tl-badge fail">FAIL</span>';
+        avatarContent = '<i class="fas fa-exclamation"></i>';
+      } else if (msg.systemType === 'skill') {
+        cssClass = 'system';
+        badge = '<span class="tl-badge" style="background:var(--purple-soft);color:var(--purple)">SKILL</span>';
+        avatarContent = '<i class="fas fa-bolt"></i>';
+      } else if (msg.systemType === 'system') {
+        cssClass = 'system';
+        avatarContent = '<i class="fas fa-info"></i>';
+      }
+
+      // PP avatar
+      let avatarHtml = `<div class="tl-avatar">${avatarContent}</div>`;
+      if (ppCache[msg.from] && !msg.systemType) {
+        avatarHtml = `<div class="tl-avatar"><img src="${ppCache[msg.from]}" onerror="this.parentElement.innerHTML='${avatarContent}'"></div>`;
+      }
+
+      const event = {
+        html: `<div class="tl-item ${cssClass}">
+          ${avatarHtml}
+          <div class="tl-content">
+            <div class="tl-header">
+              <span class="tl-name">${escapeHtml(name)}${badge}</span>
+              <span class="tl-time">${time}</span>
+            </div>
+            <div class="tl-text">${text}</div>
+          </div>
+        </div>`,
+        timestamp: msg.timestamp
+      };
+
+      timelineEvents.push(event);
+      if (timelineEvents.length > MAX_TIMELINE) timelineEvents.shift();
+
+      renderTimeline();
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById('timeline');
+      if (timelineEvents.length === 0) {
+        container.innerHTML = '<div class="tl-empty"><i class="fas fa-inbox"></i> Belum ada aktivitas</div>';
+      } else {
+        // Render in reverse so newest on top
+        container.innerHTML = timelineEvents.map(e => e.html).reverse().join('');
+      }
+      document.getElementById('timelineCount').textContent = timelineEvents.length + ' events';
+    }
+
+    // ==================== SKILL MANAGEMENT ====================
+    let skillsConfig = {};
+
+    function applySkillsToUI() {
+      Object.keys(skillsConfig).forEach(skillId => {
+        const cfg = skillsConfig[skillId];
+        const toggle = document.getElementById('toggle-skill-' + skillId);
+        if (toggle && cfg.enabled !== undefined) {
+          if (cfg.enabled) toggle.classList.add('on'); else toggle.classList.remove('on');
+        }
+        // Config values — map skill config keys to input IDs
+        if (skillId === 'web_search') {
+          const prov = document.getElementById('cfg-search-provider');
+          if (prov && cfg.provider) prov.value = cfg.provider;
+          const key = document.getElementById('cfg-search-apikey');
+          if (key && cfg.apikey !== undefined) key.value = cfg.apikey;
+          const max = document.getElementById('cfg-search-max');
+          if (max && cfg.max !== undefined) max.value = cfg.max;
+        }
+        if (skillId === 'calculator') {
+          const prec = document.getElementById('cfg-calc-precision');
+          if (prec && cfg.precision !== undefined) prec.value = cfg.precision;
+        }
+        if (skillId === 'translator') {
+          const tgt = document.getElementById('cfg-translate-target');
+          if (tgt && cfg.target !== undefined) tgt.value = cfg.target;
+        }
+        if (skillId === 'summarizer') {
+          const mx = document.getElementById('cfg-summary-max');
+          if (mx && cfg.maxSentences !== undefined) mx.value = cfg.maxSentences;
+        }
+      });
+      updateSkillCount();
+    }
+
+    function loadSkillsConfig() {
+      // LocalStorage sebagai fallback, tapi server config di-prioritaskan via socket event
+      try {
+        const saved = localStorage.getItem('botcore_skills');
+        if (saved) skillsConfig = JSON.parse(saved);
+      } catch (e) {}
+      applySkillsToUI();
+    }
+
+    function saveSkillsConfig() {
+      // Gather all skill states
+      const allSkillCards = document.querySelectorAll('.skill-card[data-skill]');
+      allSkillCards.forEach(card => {
+        const skillId = card.dataset.skill;
+        if (!skillsConfig[skillId]) skillsConfig[skillId] = {};
+        skillsConfig[skillId].enabled = document.getElementById('toggle-skill-' + skillId)?.classList.contains('on') || false;
+      });
+      localStorage.setItem('botcore_skills', JSON.stringify(skillsConfig));
+      // Send to server
+      socket.emit('update_skills', skillsConfig);
+      updateSkillCount();
+    }
+
+    function toggleSkill(skillId) {
+      const toggle = document.getElementById('toggle-skill-' + skillId);
+      if (toggle) toggle.classList.toggle('on');
+      saveSkillsConfig();
+    }
+
+    function toggleSkillExpand(skillId) {
+      const card = document.getElementById('skill-' + skillId);
+      if (card) card.classList.toggle('expanded');
+    }
+
+    function saveSkillConfig(skillId) {
+      if (!skillsConfig[skillId]) skillsConfig[skillId] = {};
+      const card = document.getElementById('skill-' + skillId);
+      if (!card) return;
+      const inputs = card.querySelectorAll('.skill-config-input, .setting-select');
+      const prefix = 'cfg-' + skillId.replace('_', '-') + '-';
+      inputs.forEach(input => {
+        const key = input.id.replace(prefix, '');
+        let val = input.value;
+        if (input.type === 'number') val = parseFloat(val);
+        skillsConfig[skillId][key] = val;
+      });
+      saveSkillsConfig();
+    }
+
+    function updateSkillCount() {
+      let count = 0;
+      Object.values(skillsConfig).forEach(cfg => { if (cfg.enabled) count++; });
+      document.getElementById('aiSkillCount').textContent = count + ' aktif';
+    }
+
+    function showAddSkillModal() {
+      showToast('Custom skill segera hadir...');
+    }
+
+    // ==================== TOAST ====================
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+        padding:10px 20px;background:var(--bg-card);border:1px solid var(--border);
+        border-radius:10px;color:var(--text);font-size:12px;font-weight:600;
+        z-index:9999;opacity:0;transition:opacity 0.3s;font-family:inherit;
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.style.opacity = '1');
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2000);
+    }
+
+    // ==================== INIT ====================
+    loadSkillsConfig();
+  </script>
 </body>
 </html>
