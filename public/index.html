@@ -3,693 +3,571 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Command Center - WhatsApp Bot</title>
+  <title>BOT_CORE - WhatsApp Auto-Reply</title>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    /* ==================== DARK THEME (default) ==================== */
     :root {
-      --bg-cyber: #05070a;
-      --bg-card: rgba(10, 15, 24, 0.85);
-      --border-neon: rgba(0, 240, 255, 0.2);
-      --neon-cyan: #00f0ff;
-      --neon-cyan-glow: rgba(0, 240, 255, 0.4);
-      --neon-green: #00ff66;
-      --neon-magenta: #ff0055;
-      --text-main: #e2e8f0;
-      --text-muted: #64748b;
-      --msg-sent: rgba(0, 240, 255, 0.1);
-      --msg-received: rgba(15, 23, 42, 0.9);
-      --tick-blue: #00f0ff;
-      --input-bg: rgba(0, 0, 0, 0.4);
-      --overlay-bg: rgba(5, 7, 10, 1);
-      --grid-opacity: 0.03;
+      --bg-cyber: #05070a; --bg-card: rgba(10, 15, 24, 0.85); --border-neon: rgba(0, 240, 255, 0.2);
+      --neon-cyan: #00f0ff; --neon-cyan-glow: rgba(0, 240, 255, 0.4); --neon-green: #00ff66;
+      --neon-magenta: #ff0055; --neon-yellow: #fbbf24; --text-main: #e2e8f0; --text-muted: #64748b;
+      --msg-sent: rgba(0, 240, 255, 0.1); --msg-received: rgba(15, 23, 42, 0.9);
+      --input-bg: rgba(0, 0, 0, 0.4); --grid-opacity: 0.03;
     }
-
-    /* ==================== LIGHT THEME ==================== */
     html.light {
-      --bg-cyber: #f1f5f9;
-      --bg-card: rgba(255, 255, 255, 0.9);
-      --border-neon: rgba(14, 165, 233, 0.3);
-      --neon-cyan: #0284c7;
-      --neon-cyan-glow: rgba(14, 165, 233, 0.2);
-      --neon-green: #16a34a;
-      --neon-magenta: #dc2626;
-      --text-main: #1e293b;
-      --text-muted: #94a3b8;
-      --msg-sent: rgba(14, 165, 233, 0.08);
-      --msg-received: rgba(255, 255, 255, 0.95);
-      --tick-blue: #0284c7;
-      --input-bg: rgba(0, 0, 0, 0.04);
-      --overlay-bg: #f1f5f9;
-      --grid-opacity: 0.06;
+      --bg-cyber: #f1f5f9; --bg-card: rgba(255, 255, 255, 0.9); --border-neon: rgba(14, 165, 233, 0.3);
+      --neon-cyan: #0284c7; --neon-cyan-glow: rgba(14, 165, 233, 0.2); --neon-green: #16a34a;
+      --neon-magenta: #dc2626; --neon-yellow: #d97706; --text-main: #1e293b; --text-muted: #94a3b8;
+      --msg-sent: rgba(14, 165, 233, 0.08); --msg-received: rgba(241, 245, 249, 0.95);
+      --input-bg: rgba(0, 0, 0, 0.04); --grid-opacity: 0.04;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
-    
     html, body { height: 100%; width: 100%; overflow: hidden; background-color: #020305; color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
     html.light, html.light body { background-color: #e2e8f0; }
-
-    /* BACKGROUND GRID */
     .app-container {
       width: 100%; max-width: 480px; height: 100vh; height: 100dvh; margin: 0 auto;
       background-color: var(--bg-cyber);
-      background-image: 
-        linear-gradient(rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 240, 255, var(--grid-opacity)) 1px, transparent 1px);
       background-size: 24px 24px;
       display: flex; flex-direction: column; position: relative; overflow: hidden;
       transition: background-color 0.3s;
     }
 
-    /* HEADER */
+    /* ===== HEADER ===== */
     .main-header {
-      height: 60px; background: var(--bg-card); backdrop-filter: blur(12px);
-      padding: 0 16px; display: flex; justify-content: space-between; align-items: center;
+      height: 48px; background: var(--bg-card); backdrop-filter: blur(12px);
+      padding: 0 12px; display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid var(--border-neon); flex-shrink: 0; z-index: 10;
     }
-    .app-logo {
-      font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
-      color: var(--neon-cyan); letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
-      text-transform: uppercase; text-shadow: 0 0 10px var(--neon-cyan-glow);
-    }
+    .app-logo { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; text-shadow: 0 0 10px var(--neon-cyan-glow); }
     html.light .app-logo { text-shadow: none; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .theme-btn {
-      background: none; border: 1px solid var(--border-neon); color: var(--text-muted);
-      width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 13px;
-      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-    }
-    .theme-btn:hover { color: var(--neon-cyan); border-color: var(--neon-cyan); }
-    .status-pill {
-      display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace;
-      font-size: 10px; padding: 5px 10px; border-radius: 4px;
-      background: var(--msg-sent); border: 1px solid var(--border-neon); font-weight: 600; text-transform: uppercase;
-    }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--neon-magenta); box-shadow: 0 0 8px var(--neon-magenta); }
-    .dot.online { background-color: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
-    html.light .dot { box-shadow: none; }
+    .header-right { display: flex; align-items: center; gap: 4px; }
+    .status-pill { display: flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-neon); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+    .dot.online { background: var(--neon-green); box-shadow: 0 0 6px var(--neon-green); }
+    .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 6px; border-radius: 6px; transition: all 0.2s; }
+    .icon-btn:hover { color: var(--neon-cyan); background: rgba(0, 240, 255, 0.08); }
 
-    /* TABS */
-    .nav-tabs {
-      display: flex; border-bottom: 1px solid var(--border-neon); background: var(--bg-card); flex-shrink: 0;
+    /* ===== ENGINE BAR ===== */
+    .engine-bar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: var(--bg-card); border-bottom: 1px solid var(--border-neon); flex-shrink: 0;
     }
-    .tab-btn {
-      flex: 1; padding: 12px 0; background: none; border: none; color: var(--text-muted);
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
-      letter-spacing: 0.5px; cursor: pointer; text-transform: uppercase;
-      border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    .eb-left { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .eb-status { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: var(--neon-magenta); letter-spacing: 0.5px; }
+    .eb-status.active { color: var(--neon-green); }
+    .eb-divider { width: 1px; height: 20px; background: var(--border-neon); flex-shrink: 0; }
+    .eb-center { display: flex; gap: 4px; flex-shrink: 0; }
+    .mode-btn {
+      font-family: 'JetBrains Mono', monospace; font-size: 8px; padding: 3px 8px;
+      border: 1px solid var(--border-neon); background: transparent; color: var(--text-muted);
+      border-radius: 4px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
     }
+    .mode-btn:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+    .mode-btn.active-draft { background: rgba(251, 191, 36, 0.15); border-color: var(--neon-yellow); color: var(--neon-yellow); }
+    .mode-btn.active-auto { background: rgba(0, 255, 102, 0.15); border-color: var(--neon-green); color: var(--neon-green); }
+    .eb-right { display: flex; gap: 8px; margin-left: auto; }
+    .eb-stat { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); }
+    .eb-stat b { color: var(--neon-cyan); font-weight: 600; }
+    .eb-stat.green b { color: var(--neon-green); }
+    .eb-stat.red b { color: var(--neon-magenta); }
+    .eb-stat.yellow b { color: var(--neon-yellow); }
+
+    /* ===== SWITCH ===== */
+    .switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: var(--text-muted); border-radius: 18px; cursor: pointer; transition: 0.3s; }
+    .slider:before { content: ''; position: absolute; height: 14px; width: 14px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.3s; }
+    .switch input:checked + .slider { background: var(--neon-green); }
+    .switch input:checked + .slider:before { transform: translateX(16px); }
+
+    /* ===== TABS ===== */
+    .tab-bar { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-neon); flex-shrink: 0; }
+    .tab-btn { flex: 1; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 1px; color: var(--text-muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .tab-btn.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); }
     .tab-btn:hover { color: var(--neon-cyan); }
+    .tab-btn .badge { background: var(--neon-magenta); color: white; font-size: 8px; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
 
-    /* CONTENT */
-    .content-area { flex: 1; min-height: 0; overflow: hidden; position: relative; }
-    .tab-content { display: none; height: 100%; overflow-y: auto; }
-    .tab-content.active { display: block; }
+    /* ===== CONTENT ===== */
+    .content-area { flex: 1; overflow: hidden; position: relative; }
+    .tab-content { display: none; height: 100%; overflow: hidden; flex-direction: column; }
+    .tab-content.active { display: flex; }
 
-    /* DASHBOARD */
-    .dashboard-panel { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .stat-card {
-      background: var(--bg-card); border: 1px solid var(--border-neon); border-radius: 8px; padding: 16px;
-    }
-    .stat-title {
-      font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700;
-      color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px;
-    }
-    .stat-value {
-      font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--neon-cyan);
-    }
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; }
-    .switch { position: relative; width: 44px; height: 24px; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute; inset: 0; background: var(--text-muted); border-radius: 24px; cursor: pointer; transition: 0.3s;
-    }
-    .slider:before {
-      content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px;
-      background: white; border-radius: 50%; transition: 0.3s;
-    }
-    .switch input:checked + .slider { background: var(--neon-cyan); }
-    .switch input:checked + .slider:before { transform: translateX(20px); }
-
-    /* Dashboard auto-reply detail */
-    .reply-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .reply-stat-card {
-      background: var(--bg-card); border: 1px solid var(--border-neon); border-radius: 8px; padding: 14px; text-align: center;
-    }
-    .reply-stat-card .num {
-      font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--neon-cyan);
-    }
-    .reply-stat-card .lbl {
-      font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; letter-spacing: 0.5px;
-    }
-    .reply-stat-card.accent-green .num { color: var(--neon-green); }
-    .reply-stat-card.accent-red .num { color: var(--neon-magenta); }
-    .dash-section-title {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
-      color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; padding: 4px 0;
-    }
-    .recent-reply-list { display: flex; flex-direction: column; gap: 6px; }
-    .recent-reply-item {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-      background: var(--bg-card); border: 1px solid var(--border-neon); border-radius: 8px;
-    }
-    .recent-reply-item .rri-avatar {
-      width: 32px; height: 32px; border-radius: 50%; background: var(--msg-sent);
-      display: flex; align-items: center; justify-content: center; color: var(--neon-cyan); font-size: 12px; flex-shrink: 0;
-    }
-    .recent-reply-item .rri-info { flex: 1; min-width: 0; }
-    .recent-reply-item .rri-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .recent-reply-item .rri-msg { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .recent-reply-item .rri-time { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
-
-    /* SEARCH BAR */
-    .search-bar { padding: 12px 16px; }
+    /* ===== SEARCH ===== */
+    .search-bar { padding: 8px; flex-shrink: 0; }
     .input-box {
-      display: flex; align-items: center; background: var(--input-bg); border: 1px solid var(--border-neon);
-      border-radius: 8px; padding: 0 12px; gap: 8px;
+      display: flex; align-items: center; gap: 8px; background: var(--input-bg);
+      border: 1px solid var(--border-neon); border-radius: 8px; padding: 8px 12px; color: var(--text-main); font-size: 13px; font-family: 'Space Grotesk', sans-serif;
     }
-    .input-box input {
-      flex: 1; background: transparent; border: none; padding: 10px 0; color: var(--text-main);
-      font-size: 13px; outline: none; font-family: 'Space Grotesk', sans-serif;
-    }
+    .input-box input { background: none; border: none; outline: none; color: var(--text-main); font-size: 13px; font-family: inherit; flex: 1; }
     .input-box input::placeholder { color: var(--text-muted); }
 
-    /* CHAT LIST */
+    /* ===== CHAT LIST ===== */
     .chat-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
     .chat-card {
-      display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px;
-      cursor: pointer; transition: background 0.15s; margin-bottom: 2px;
+      display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px;
+      cursor: pointer; transition: background 0.2s; margin-bottom: 2px;
     }
-    .chat-card:hover { background: var(--msg-sent); }
+    .chat-card:hover { background: rgba(0, 240, 255, 0.05); }
     .avatar-box {
-      width: 46px; height: 46px; border-radius: 50%; background: var(--msg-sent);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-      color: var(--neon-cyan); font-size: 16px; position: relative; overflow: hidden;
+      width: 42px; height: 42px; border-radius: 50%; background: var(--input-bg); border: 1px solid var(--border-neon);
+      display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 16px;
+      overflow: hidden; flex-shrink: 0; position: relative;
     }
-    .avatar-box img {
-      position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-      border-radius: 50%; display: none;
-    }
-    .avatar-box img.loaded { display: block; }
-    .avatar-box img.loaded + i { display: none; }
+    .avatar-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s; }
+    .avatar-box img.loaded { opacity: 1; }
     .chat-info { flex: 1; min-width: 0; }
-    .chat-header-line { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-    .contact-title { font-size: 14px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .timestamp { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); }
+    .chat-header-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+    .contact-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .timestamp { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-muted); flex-shrink: 0; }
     .preview-msg { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
-
-    /* ROOM OVERLAY */
-    .room-overlay {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background-color: var(--overlay-bg); z-index: 30;
-      display: flex; flex-direction: column; transform: translateX(100%);
-      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .room-overlay.active { transform: translateX(0); }
-    .room-header {
-      height: 56px; background: var(--bg-card); backdrop-filter: blur(12px);
-      padding: 0 16px; display: flex; align-items: center; gap: 12px;
-      flex-shrink: 0; border-bottom: 1px solid var(--border-neon); z-index: 5;
-    }
-    .chat-viewport { flex: 1; min-height: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .msg-bubble {
-      max-width: 82%; padding: 10px 14px; border-radius: 8px; font-size: 13.5px;
-      line-height: 19px; word-wrap: break-word; position: relative;
-    }
-    .msg-bubble.received {
-      background-color: var(--msg-received); align-self: flex-start;
-      border: 1px solid var(--border-neon); border-top-left-radius: 0;
-    }
-    .msg-bubble.sent {
-      background-color: var(--msg-sent); align-self: flex-end;
-      border: 1px solid var(--neon-cyan); border-top-right-radius: 0;
-      box-shadow: 0 0 10px var(--neon-cyan-glow);
-    }
-    html.light .msg-bubble.sent { box-shadow: none; }
-    .msg-meta {
-      display: inline-flex; align-items: center; gap: 4px; float: right;
-      margin-left: 10px; margin-top: 4px; font-family: 'JetBrains Mono', monospace;
-      font-size: 9.5px; color: var(--text-muted);
-    }
-    .tick { font-size: 11px; }
-    .tick-blue { color: var(--tick-blue); text-shadow: 0 0 5px var(--tick-blue); }
-    html.light .tick-blue { text-shadow: none; }
+    .tick { font-size: 10px; }
+    .tick-blue { color: var(--neon-cyan); }
     .tick-grey { color: var(--text-muted); }
-    .room-footer {
-      padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-card);
-      display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-top: 1px solid var(--border-neon);
-    }
-    .text-input-field {
-      flex: 1; background-color: var(--input-bg); border-radius: 6px; padding: 0 12px;
-      display: flex; align-items: center; border: 1px solid var(--border-neon);
-    }
-    .text-input-field input {
-      width: 100%; background: transparent; border: none; padding: 10px 0; color: var(--text-main); outline: none; font-size: 13px;
-    }
-    .send-trigger {
-      background: var(--msg-sent); border: 1px solid var(--neon-cyan); width: 40px; height: 40px;
-      border-radius: 6px; color: var(--neon-cyan); cursor: pointer; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.2s;
-      box-shadow: 0 0 10px var(--neon-cyan-glow);
-    }
-    html.light .send-trigger { box-shadow: none; }
-    .send-trigger:active { transform: scale(0.92); }
+    .feed-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 1px; }
 
-    /* AI PANEL */
-    .ai-panel { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-    .form-group { display: flex; flex-direction: column; gap: 8px; }
-    .form-group label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    /* ===== ROOM OVERLAY ===== */
+    .room-overlay {
+      position: absolute; inset: 0; background: var(--bg-cyber); z-index: 20;
+      display: none; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease;
+    }
+    .room-overlay.active { display: flex; transform: translateX(0); }
+    .room-header {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-card);
+      border-bottom: 1px solid var(--border-neon); flex-shrink: 0; height: 52px;
+    }
+    .chat-viewport { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .msg-bubble {
+      max-width: 82%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word;
+    }
+    .msg-bubble.received { background: var(--msg-received); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-bubble.sent { background: var(--msg-sent); align-self: flex-end; border-bottom-right-radius: 4px; border: 1px solid var(--border-neon); }
+    .msg-bubble.draft-bubble { border-left: 3px solid var(--neon-yellow) !important; opacity: 0.8; }
+    .msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 3px; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted); }
+    .room-footer { display: flex; gap: 8px; padding: 8px; background: var(--bg-card); border-top: 1px solid var(--border-neon); flex-shrink: 0; }
+    .text-input-field { flex: 1; }
+    .text-input-field input {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border-neon); border-radius: 8px;
+      padding: 10px 12px; color: var(--text-main); font-size: 13px; font-family: inherit; outline: none;
+    }
+    .text-input-field input::placeholder { color: var(--text-muted); }
+    .send-trigger {
+      width: 42px; height: 42px; border-radius: 50%; background: var(--neon-cyan); border: none;
+      color: #05070a; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .send-trigger:hover { box-shadow: 0 0 16px var(--neon-cyan-glow); }
+
+    /* ===== ACTIVITY FEED ===== */
+    .feed-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .feed-item {
+      display: flex; gap: 8px; padding: 8px; border-radius: 6px; margin-bottom: 4px;
+      background: var(--input-bg); border: 1px solid var(--border-neon);
+    }
+    .feed-icon {
+      width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      font-size: 10px; flex-shrink: 0; background: rgba(0, 255, 102, 0.15); color: var(--neon-green);
+    }
+    .feed-icon.fail { background: rgba(255, 0, 85, 0.15); color: var(--neon-magenta); }
+    .feed-icon.draft { background: rgba(251, 191, 36, 0.15); color: var(--neon-yellow); }
+    .feed-body { flex: 1; min-width: 0; }
+    .feed-name { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+    .feed-query { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .feed-reply { font-size: 11px; color: var(--neon-green); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fail-text { color: var(--neon-magenta); }
+    .feed-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .feed-time { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--text-muted); }
+    .feed-latency { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--neon-cyan); }
+
+    /* ===== AI SETTINGS MODAL ===== */
+    .modal-overlay {
+      position: absolute; inset: 0; background: rgba(5, 7, 10, 0.92); backdrop-filter: blur(8px);
+      z-index: 50; display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      width: 100%; max-height: 85vh; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-neon);
+      border-radius: 12px; padding: 20px;
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-title { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 1px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
     .form-group input, .form-group textarea {
-      font-family: 'JetBrains Mono', monospace; background-color: var(--input-bg);
-      border: 1px solid var(--border-neon); border-radius: 6px; padding: 10px 12px;
-      color: var(--text-main); font-size: 12px; outline: none;
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border-neon); border-radius: 6px;
+      padding: 8px 10px; color: var(--text-main); font-size: 12px; font-family: 'JetBrains Mono', monospace; outline: none; resize: vertical;
     }
-    .form-group input:focus, .form-group textarea:focus { border-color: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan-glow); }
-    html.light .form-group input:focus, html.light .form-group textarea:focus { box-shadow: none; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--neon-cyan); }
     .btn-save {
-      font-family: 'JetBrains Mono', monospace; background: var(--msg-sent); border: 1px solid var(--neon-cyan);
-      color: var(--neon-cyan); font-weight: 700; padding: 12px; border-radius: 6px; cursor: pointer;
-      font-size: 12px; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 0 10px var(--neon-cyan-glow);
+      width: 100%; padding: 10px; background: var(--neon-cyan); color: #05070a; border: none; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; margin-top: 8px;
     }
-    html.light .btn-save { box-shadow: none; }
-    .btn-save:active { transform: scale(0.98); }
+    .btn-save:hover { box-shadow: 0 0 20px var(--neon-cyan-glow); }
+    .modal-feedback { display: none; padding: 8px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-align: center; margin-top: 8px; }
+    .modal-feedback.ok { display: block; background: rgba(0,255,102,0.1); color: var(--neon-green); border: 1px solid var(--neon-green); }
+    .modal-feedback.err { display: block; background: rgba(255,0,85,0.1); color: var(--neon-magenta); border: 1px solid var(--neon-magenta); }
   </style>
 </head>
 <body>
+<div class="app-container">
 
-  <div class="app-container">
-    
-    <!-- HEADER -->
-    <div class="main-header">
-      <div class="app-logo"><i class="fa-solid fa-terminal"></i> BOT_CORE v2.0</div>
-      <div class="header-right">
-        <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
-          <i id="themeIcon" class="fa-solid fa-sun"></i>
-        </button>
-        <div class="status-pill">
-          <span id="statusDot" class="dot"></span>
-          <span id="statusText" style="color: var(--text-muted);">OFFLINE</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- TABS -->
-    <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('dashboardTab', this)">
-        <i class="fa-solid fa-robot"></i> AUTOREPLY
-      </button>
-      <button class="tab-btn" onclick="switchTab('chatTab', this)">
-        <i class="fa-solid fa-comments"></i> CHAT
-      </button>
-      <button class="tab-btn" onclick="switchTab('aiTab', this)">
-        <i class="fa-solid fa-brain"></i> AI CFG
-      </button>
-    </div>
-
-    <!-- CONTENT -->
-    <div class="content-area">
-
-      <!-- TAB 1: DASHBOARD AUTO-REPLY -->
-      <div id="dashboardTab" class="tab-content active">
-        <div class="dashboard-panel">
-          <!-- Toggle Auto-Reply -->
-          <div class="stat-card">
-            <div class="stat-title"><i class="fa-solid fa-robot"></i> Auto-Reply Engine</div>
-            <div class="toggle-row">
-              <span id="autoReplyStatusText" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--neon-cyan);">ACTIVE</span>
-              <label class="switch">
-                <input type="checkbox" id="autoReplyToggle" checked onclick="toggleAutoReply()">
-                <span class="slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Stat Grid -->
-          <div class="reply-stat-grid">
-            <div class="reply-stat-card">
-              <div class="num" id="statIncoming">0</div>
-              <div class="lbl">Incoming</div>
-            </div>
-            <div class="reply-stat-card accent-green">
-              <div class="num" id="statReplied">0</div>
-              <div class="lbl">Replied</div>
-            </div>
-            <div class="reply-stat-card">
-              <div class="num" id="statContacts">0</div>
-              <div class="lbl">Kontak</div>
-            </div>
-            <div class="reply-stat-card accent-red">
-              <div class="num" id="statRate">0%</div>
-              <div class="lbl">Reply Rate</div>
-            </div>
-          </div>
-
-          <!-- Recent Replies -->
-          <div class="dash-section-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent Auto-Replies</div>
-          <div id="recentReplies" class="recent-reply-list">
-            <div style="padding: 20px; text-align: center; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 11px;">NO_RECENT_ACTIVITY</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: CHAT -->
-      <div id="chatTab" class="tab-content">
-        <div class="search-bar">
-          <div class="input-box">
-            <i class="fa-solid fa-magnifying-glass" style="color: var(--neon-cyan);"></i>
-            <input type="text" id="newPhoneInput" placeholder="Ketik nomor baru (+62...)" onkeypress="handleNewChat(event)">
-          </div>
-        </div>
-        <div id="chatList" class="chat-list">
-          <div style="padding: 40px 20px; text-align: center; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 11px;">NO_ACTIVE_LOGS</div>
-        </div>
-
-        <!-- ROOM OVERLAY -->
-        <div id="roomOverlay" class="room-overlay">
-          <div class="room-header">
-            <button style="background:none; border:none; color:var(--neon-cyan); font-size:14px; cursor:pointer;" onclick="closeRoomOverlay()">
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <div id="roomAvatar" class="avatar-box" style="width: 36px; height: 36px; font-size: 13px; margin-right: 0;"><i class="fa-solid fa-user"></i></div>
-            <div style="flex: 1; overflow: hidden;">
-              <div id="roomTitle" class="contact-title">Target</div>
-              <div style="font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--neon-green);">ONLINE</div>
-            </div>
-          </div>
-          <div id="chatViewport" class="chat-viewport"></div>
-          <div class="room-footer">
-            <div class="text-input-field">
-              <input type="text" id="msgInput" placeholder="Ketik pesan..." onkeypress="handleKeyPress(event)" autocomplete="off">
-            </div>
-            <button class="send-trigger" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 3: AI CONFIG -->
-      <div id="aiTab" class="tab-content">
-        <div class="ai-panel">
-          <div class="form-group">
-            <label>API_KEY_AUTH</label>
-            <input type="password" id="apiKeyInput" placeholder="Masukkan key token...">
-          </div>
-          <div class="form-group">
-            <label>SYSTEM_PROMPT</label>
-            <textarea id="systemPromptInput" rows="5" placeholder="Definisikan perilaku AI..."></textarea>
-          </div>
-          <div class="form-group">
-            <label>TRIGGER_PREFIX</label>
-            <input type="text" id="aiTriggerInput" placeholder="Contoh: !ai">
-          </div>
-          <button class="btn-save" onclick="saveAiSettings()">SIMPAN KONFIGURASI</button>
-        </div>
-      </div>
-
+  <!-- HEADER -->
+  <div class="main-header">
+    <div class="app-logo"><i class="fa-solid fa-robot"></i> BOT_CORE</div>
+    <div class="header-right">
+      <div class="status-pill"><span id="statusDot" class="dot"></span><span id="statusText">OFFLINE</span></div>
+      <button class="icon-btn" onclick="openAISettings()" title="AI Settings"><i class="fa-solid fa-sliders"></i></button>
+      <button class="icon-btn" onclick="toggleTheme()"><i id="themeIcon" class="fa-solid fa-sun"></i></button>
     </div>
   </div>
 
-  <script>
-    const socket = io();
-    let chats = {}; 
-    let activeJid = null;
-    let autoReplyEnabled = true;
-    let ppCache = {};
+  <!-- ENGINE BAR -->
+  <div class="engine-bar">
+    <div class="eb-left">
+      <label class="switch"><input type="checkbox" id="autoReplyToggle" onchange="toggleAutoReply()"><span class="slider"></span></label>
+      <span id="engineStatusText" class="eb-status">DISABLED</span>
+    </div>
+    <div class="eb-divider"></div>
+    <div class="eb-center">
+      <button class="mode-btn active-draft" id="btnDraft" onclick="switchSendMode('draft')">DRAFT</button>
+      <button class="mode-btn" id="btnAuto" onclick="switchSendMode('auto')">AUTO</button>
+    </div>
+    <div class="eb-right">
+      <span class="eb-stat green"><b id="statReplied">0</b> sent</span>
+      <span class="eb-stat red"><b id="statFailed">0</b> fail</span>
+      <span class="eb-stat yellow"><b id="statLatency">0</b>ms</span>
+    </div>
+  </div>
 
-    // ==================== THEME ====================
-    function toggleTheme() {
-      document.documentElement.classList.toggle('light');
-      const isLight = document.documentElement.classList.contains('light');
-      document.getElementById('themeIcon').className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-      localStorage.setItem('theme', isLight ? 'light' : 'dark');
-    }
-    // Restore theme
-    if (localStorage.getItem('theme') === 'light') {
-      document.documentElement.classList.add('light');
-      document.getElementById('themeIcon').className = 'fa-solid fa-moon';
-    }
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('chatTab', this)"><i class="fa-solid fa-comments"></i> PESAN</button>
+    <button class="tab-btn" onclick="switchTab('logTab', this)"><i class="fa-solid fa-signal"></i> LOG</button>
+  </div>
 
-    // ==================== TABS ====================
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
-    }
+  <!-- CONTENT -->
+  <div class="content-area">
 
-    // ==================== SOCKET EVENTS ====================
-    socket.on('status', (status) => {
-      const dot = document.getElementById('statusDot');
-      const txt = document.getElementById('statusText');
-      if (status === 'open') {
-        dot.className = 'dot online'; txt.innerText = 'ONLINE'; txt.style.color = 'var(--neon-green)';
-      } else {
-        dot.className = 'dot'; txt.innerText = 'OFFLINE'; txt.style.color = 'var(--neon-magenta)';
-      }
-    });
-
-    socket.on('load_history', (messages) => {
-      chats = {};
-      if (Array.isArray(messages)) messages.forEach(msg => appendMessageToLocal(msg));
-      renderChatList();
-      updateDashboardStats();
-    });
-
-    socket.on('new_message', (data) => {
-      if (!data) return;
-      if (data.profilePictureUrl && data.from) ppCache[data.from] = data.profilePictureUrl;
-      appendMessageToLocal(data);
-      renderChatList();
-      updateDashboardStats();
-      if (activeJid === data.from) renderMessages(data.from);
-    });
-
-    socket.on('profile_picture', (data) => {
-      if (!data || !data.jid || !data.url) return;
-      ppCache[data.jid] = data.url;
-      renderChatList();
-      if (activeJid === data.jid) setRoomPP(data.jid);
-    });
-
-    socket.on('pp_cache', (data) => {
-      if (!data) return;
-      ppCache = { ...ppCache, ...data };
-      renderChatList();
-      if (activeJid) setRoomPP(activeJid);
-    });
-
-    socket.on('name_cache', (data) => {
-      if (!data) return;
-      let updated = 0;
-      for (const [jid, name] of Object.entries(data)) {
-        if (chats[jid] && name && name.trim() && !/^\d+$/.test(name.trim())) {
-          if (isRawName(chats[jid].name)) { chats[jid].name = name.trim(); updated++; }
-        }
-      }
-      if (updated > 0) renderChatList();
-      if (activeJid && data[activeJid] && !isRawName(data[activeJid])) {
-        document.getElementById('roomTitle').innerText = data[activeJid];
-      }
-    });
-
-    // ==================== AVATAR PP ====================
-    function setRoomPP(jid) {
-      const box = document.getElementById('roomAvatar');
-      const url = ppCache[jid];
-      if (!url || !box) return;
-      let img = box.querySelector('img');
-      if (!img) { img = document.createElement('img'); box.prepend(img); }
-      img.onload = () => img.classList.add('loaded');
-      img.onerror = () => { img.remove(); }; // Hapus img jika gagal load
-      img.src = url;
-    }
-
-    // ==================== NAME HELPERS ====================
-    function isRawName(name) {
-      if (!name || !name.trim()) return true;
-      const n = name.trim();
-      if (/^\+?\d+$/.test(n)) return true;
-      if (n.includes('@')) return true;
-      return false;
-    }
-    function stripJid(jid) {
-      return jid.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '');
-    }
-
-    // ==================== CHAT DATA ====================
-    function appendMessageToLocal(msg) {
-      const jid = msg.from;
-      if (!jid) return;
-      if (!chats[jid]) {
-        const fallbackName = msg.pushName && !isRawName(msg.pushName) ? msg.pushName : stripJid(jid);
-        chats[jid] = { name: fallbackName, isGroup: jid.endsWith('@g.us'), messages: [] };
-      } else if (msg.pushName && msg.pushName.trim() && !isRawName(msg.pushName)) {
-        if (isRawName(chats[jid].name)) chats[jid].name = msg.pushName.trim();
-      }
-      chats[jid].messages.push(msg);
-      chats[jid].messages.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-    }
-
-    function getTickIcon(status) {
-      if (status === 3 || status === 'read') return '<i class="fa-solid fa-check-double tick tick-blue"></i>';
-      if (status === 2 || status === 'delivered') return '<i class="fa-solid fa-check-double tick tick-grey"></i>';
-      return '<i class="fa-solid fa-check tick tick-grey"></i>';
-    }
-
-    function renderChatList() {
-      const el = document.getElementById('chatList');
-      const sorted = Object.keys(chats).sort((a, b) => {
-        const la = chats[a].messages[chats[a].messages.length - 1]?.timestamp || 0;
-        const lb = chats[b].messages[chats[b].messages.length - 1]?.timestamp || 0;
-        return Number(lb) - Number(la);
-      });
-      if (sorted.length === 0) return;
-      el.innerHTML = '';
-      sorted.forEach(jid => {
-        const chat = chats[jid];
-        const last = chat.messages[chat.messages.length - 1];
-        const tick = last && last.isMe ? getTickIcon(last.status || 3) : '';
-        const item = document.createElement('div');
-        item.className = 'chat-card';
-        item.onclick = () => openRoomOverlay(jid);
-        const ppUrl = ppCache[jid];
-        const ppHtml = ppUrl
-          ? `<img src="${ppUrl}" onload="this.classList.add('loaded')" onerror="this.remove()">`
-          : '';
-        item.innerHTML = `
-          <div class="avatar-box" data-jid="${jid}">
-            <i class="fa-solid ${chat.isGroup ? 'fa-users' : 'fa-user'}"></i>
-            ${ppHtml}
+    <!-- CHAT TAB -->
+    <div id="chatTab" class="tab-content active">
+      <div class="search-bar">
+        <div class="input-box">
+          <i class="fa-solid fa-magnifying-glass" style="color: var(--neon-cyan); font-size: 12px;"></i>
+          <input type="text" id="newPhoneInput" placeholder="Ketik nomor baru (+62...)" onkeypress="handleNewChat(event)">
+        </div>
+      </div>
+      <div id="chatList" class="chat-list">
+        <div class="feed-empty"><i class="fa-solid fa-comments"></i>&nbsp; NO_ACTIVE_CHATS</div>
+      </div>
+      <!-- ROOM OVERLAY -->
+      <div id="roomOverlay" class="room-overlay">
+        <div class="room-header">
+          <button class="icon-btn" onclick="closeRoomOverlay()"><i class="fa-solid fa-chevron-left"></i></button>
+          <div id="roomAvatar" class="avatar-box" style="width: 32px; height: 32px; font-size: 12px;"><i class="fa-solid fa-user"></i></div>
+          <div style="flex: 1; overflow: hidden;">
+            <div id="roomTitle" class="contact-title" style="font-size: 13px;">Target</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--neon-green);">ONLINE</div>
           </div>
-          <div class="chat-info">
-            <div class="chat-header-line">
-              <span class="contact-title">${chat.name}</span>
-              <span class="timestamp">${last ? new Date(Number(last.timestamp)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
-            </div>
-            <div class="preview-msg">${tick} <span>${last ? last.text : ''}</span></div>
+        </div>
+        <div id="chatViewport" class="chat-viewport"></div>
+        <div class="room-footer">
+          <div class="text-input-field">
+            <input type="text" id="msgInput" placeholder="Ketik pesan..." onkeypress="handleKeyPress(event)" autocomplete="off">
           </div>
-        `;
-        el.appendChild(item);
-      });
-    }
+          <button class="send-trigger" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
 
-    function openRoomOverlay(jid) {
-      activeJid = jid;
-      document.getElementById('roomTitle').innerText = chats[jid] ? chats[jid].name : jid;
-      setRoomPP(jid);
-      renderMessages(jid);
-      document.getElementById('roomOverlay').classList.add('active');
-    }
-    function closeRoomOverlay() {
-      activeJid = null;
-      document.getElementById('roomOverlay').classList.remove('active');
-    }
+    <!-- LOG TAB -->
+    <div id="logTab" class="tab-content">
+      <div id="activityFeed" class="feed-list">
+        <div class="feed-empty"><i class="fa-solid fa-satellite-dish"></i>&nbsp; MENUNGGU AKTIVITAS...</div>
+      </div>
+    </div>
+  </div>
 
-    function renderMessages(jid) {
-      const vp = document.getElementById('chatViewport');
-      vp.innerHTML = '';
-      const list = chats[jid] ? chats[jid].messages : [];
-      list.forEach(msg => {
-        const bubble = document.createElement('div');
-        bubble.className = `msg-bubble ${msg.isMe ? 'sent' : 'received'}`;
-        const t = new Date(Number(msg.timestamp || Date.now())).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        const tick = msg.isMe ? getTickIcon(msg.status || 3) : '';
-        bubble.innerHTML = `${msg.text}<div class="msg-meta"><span>${t}</span>${tick}</div>`;
-        vp.appendChild(bubble);
-      });
-      vp.scrollTop = vp.scrollHeight;
-    }
+  <!-- AI SETTINGS MODAL -->
+  <div id="aiModal" class="modal-overlay" onclick="if(event.target===this)closeAISettings()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title"><i class="fa-solid fa-sliders"></i> AI CONFIG</span>
+        <button class="icon-btn" onclick="closeAISettings()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="form-group">
+        <label>API_KEY</label>
+        <input type="password" id="apiKeyInput" placeholder="nvapi-... atau sk-...">
+      </div>
+      <div class="form-group">
+        <label>BASE_URL</label>
+        <input type="text" id="apiBaseUrlInput" placeholder="https://integrate.api.nvidia.com/v1/chat/completions">
+      </div>
+      <div class="form-group">
+        <label>MODEL</label>
+        <input type="text" id="modelInput" placeholder="nvidia/nemotron-3-ultra-550b-a55b">
+      </div>
+      <div class="form-group">
+        <label>SYSTEM_PROMPT</label>
+        <textarea id="systemPromptInput" rows="4" placeholder="Definisikan perilaku AI..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>TRIGGER_PREFIX <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">(kosongkan = balas semua)</span></label>
+        <input type="text" id="aiTriggerInput" placeholder="Contoh: ! atau .bot">
+      </div>
+      <div id="saveAiFeedback" class="modal-feedback"></div>
+      <button class="btn-save" onclick="saveAiSettings()">SIMPAN KONFIGURASI</button>
+    </div>
+  </div>
 
-    function sendMessage() {
-      const input = document.getElementById('msgInput');
-      const text = input.value.trim();
-      if (!text || !activeJid) return;
-      socket.emit('send_message', { to: activeJid, message: text }, (res) => {
-        if (res && res.success) input.value = '';
-      });
-    }
-    function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
-    function handleNewChat(e) {
-      if (e.key === 'Enter') {
-        let phone = e.target.value.replace(/[^0-9]/g, '');
-        if (!phone) return;
-        const jid = `${phone}@s.whatsapp.net`;
-        if (!chats[jid]) chats[jid] = { name: `+${phone}`, isGroup: false, messages: [] };
-        e.target.value = '';
-        openRoomOverlay(jid);
+</div>
+
+<script>
+  const socket = io();
+  let chats = {};
+  let activeJid = null;
+  let autoReplyEnabled = false;
+  let currentSendMode = 'draft';
+  let ppCache = {};
+  let sessionUptimeStart = Date.now();
+  let activityLogs = [];
+  const MAX_FEED = 50;
+
+  // ==================== THEME ====================
+  function toggleTheme() {
+    document.documentElement.classList.toggle('light');
+    const isLight = document.documentElement.classList.contains('light');
+    document.getElementById('themeIcon').className = isLight ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  }
+  if (localStorage.getItem('theme') === 'light') {
+    document.documentElement.classList.add('light');
+    document.getElementById('themeIcon').className = 'fa-solid fa-moon';
+  }
+
+  // ==================== TABS ====================
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  // ==================== ENGINE CONTROLS ====================
+  function toggleAutoReply() {
+    const cb = document.getElementById('autoReplyToggle');
+    autoReplyEnabled = cb.checked;
+    const el = document.getElementById('engineStatusText');
+    el.innerText = autoReplyEnabled ? 'ACTIVE' : 'DISABLED';
+    el.className = 'eb-status' + (autoReplyEnabled ? ' active' : '');
+    socket.emit('toggle_autoreply', { enabled: autoReplyEnabled });
+  }
+
+  function switchSendMode(mode) {
+    currentSendMode = mode;
+    document.getElementById('btnDraft').className = 'mode-btn' + (mode === 'draft' ? ' active-draft' : '');
+    document.getElementById('btnAuto').className = 'mode-btn' + (mode === 'auto' ? ' active-auto' : '');
+    socket.emit('set_send_mode', { mode });
+  }
+
+  // ==================== AI MODAL ====================
+  function openAISettings() { document.getElementById('aiModal').classList.add('active'); }
+  function closeAISettings() { document.getElementById('aiModal').classList.remove('active'); }
+
+  // ==================== SOCKET EVENTS ====================
+  socket.on('status', (status) => {
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    if (status === 'open') { dot.className = 'dot online'; txt.style.color = 'var(--neon-green)'; txt.textContent = 'LIVE'; sessionUptimeStart = Date.now(); }
+    else if (status === 'connecting') { dot.className = 'dot'; txt.style.color = 'var(--neon-yellow)'; txt.textContent = 'CONNECTING'; }
+    else { dot.className = 'dot'; txt.style.color = 'var(--text-muted)'; txt.textContent = 'OFFLINE'; }
+  });
+
+  socket.on('load_history', (messages) => { messages.forEach(msg => appendMessageToLocal(msg)); renderChatList(); });
+
+  socket.on('new_message', (msg) => { appendMessageToLocal(msg); renderChatList(); if (activeJid === msg.from) renderMessages(activeJid); });
+
+  socket.on('pp_cache', (data) => { if (!data) return; ppCache = { ...ppCache, ...data }; renderChatList(); if (activeJid) setRoomPP(activeJid); });
+
+  socket.on('profile_picture', (data) => { if (data?.jid?.url) { ppCache[data.jid] = data.url; renderChatList(); if (activeJid === data.jid) setRoomPP(data.jid); } });
+
+  socket.on('ai_config', (cfg) => {
+    if (!cfg) return;
+    document.getElementById('apiKeyInput').value = cfg.apiKey === '***' ? '' : (cfg.apiKey || '');
+    document.getElementById('apiBaseUrlInput').value = cfg.apiBaseUrl || '';
+    document.getElementById('modelInput').value = cfg.model || '';
+    document.getElementById('systemPromptInput').value = cfg.systemPrompt || '';
+    document.getElementById('aiTriggerInput').value = cfg.triggerPrefix || '';
+    const cb = document.getElementById('autoReplyToggle');
+    cb.checked = cfg.enabled;
+    autoReplyEnabled = cfg.enabled;
+    const el = document.getElementById('engineStatusText');
+    el.innerText = cfg.enabled ? 'ACTIVE' : 'DISABLED';
+    el.className = 'eb-status' + (cfg.enabled ? ' active' : '');
+    const mode = cfg.sendMode || 'draft';
+    currentSendMode = mode;
+    document.getElementById('btnDraft').className = 'mode-btn' + (mode === 'draft' ? ' active-draft' : '');
+    document.getElementById('btnAuto').className = 'mode-btn' + (mode === 'auto' ? ' active-auto' : '');
+  });
+
+  socket.on('session_stats', (s) => {
+    if (!s) return;
+    document.getElementById('statReplied').textContent = s.replied || 0;
+    document.getElementById('statFailed').textContent = s.failed || 0;
+    document.getElementById('statLatency').textContent = s.avgLatency || 0;
+    if (s.startTime) sessionUptimeStart = s.startTime;
+  });
+
+  socket.on('auto_reply_log', (entry) => {
+    if (!entry) return;
+    activityLogs.unshift(entry);
+    if (activityLogs.length > MAX_FEED) activityLogs.pop();
+    renderActivityFeed();
+  });
+
+  socket.on('name_cache', (data) => {
+    if (!data) return;
+    for (const [jid, name] of Object.entries(data)) {
+      if (chats[jid] && name?.trim() && !/^\d+$/.test(name.trim())) {
+        if (isRawName(chats[jid].name)) chats[jid].name = name.trim();
       }
     }
+    renderChatList();
+    if (activeJid && data[activeJid] && !isRawName(data[activeJid])) document.getElementById('roomTitle').innerText = data[activeJid];
+  });
 
-    // ==================== AUTO-REPLY & DASHBOARD ====================
-    function toggleAutoReply() {
-      const cb = document.getElementById('autoReplyToggle');
-      autoReplyEnabled = cb.checked;
-      const el = document.getElementById('autoReplyStatusText');
-      el.innerText = autoReplyEnabled ? 'ACTIVE' : 'DISABLED';
-      el.style.color = autoReplyEnabled ? 'var(--neon-cyan)' : 'var(--neon-magenta)';
-      socket.emit('toggle_autoreply', { enabled: autoReplyEnabled });
-    }
+  // ==================== AVATAR ====================
+  function setRoomPP(jid) {
+    const box = document.getElementById('roomAvatar');
+    const url = ppCache[jid];
+    if (!url || !box) return;
+    let img = box.querySelector('img');
+    if (!img) { img = document.createElement('img'); box.prepend(img); }
+    img.onload = () => img.classList.add('loaded');
+    img.onerror = () => img.remove();
+    img.src = url;
+  }
 
-    function updateDashboardStats() {
-      let incoming = 0, replied = 0;
-      Object.values(chats).forEach(chat => {
-        if (Array.isArray(chat.messages)) {
-          chat.messages.forEach(msg => { if (!msg.isMe) incoming++; else replied++; });
-        }
-      });
-      const contactCount = Object.keys(chats).length;
-      const rate = incoming > 0 ? Math.round((replied / incoming) * 100) : 0;
-      document.getElementById('statIncoming').innerText = incoming;
-      document.getElementById('statReplied').innerText = replied;
-      document.getElementById('statContacts').innerText = contactCount;
-      document.getElementById('statRate').innerText = rate + '%';
-      updateRecentReplies();
-    }
+  // ==================== NAME HELPERS ====================
+  function isRawName(name) { if (!name?.trim()) return true; const n = name.trim(); return /^\+?\d+$/.test(n) || n.includes('@'); }
+  function stripJid(jid) { return jid.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, ''); }
 
-    function updateRecentReplies() {
-      const el = document.getElementById('recentReplies');
-      // Kumpulkan semua reply (pesan isMe setelah pesan !isMe)
-      const replies = [];
-      Object.entries(chats).forEach(([jid, chat]) => {
-        if (!Array.isArray(chat.messages)) return;
-        for (let i = 1; i < chat.messages.length; i++) {
-          const prev = chat.messages[i - 1];
-          const curr = chat.messages[i];
-          if (!prev.isMe && curr.isMe) {
-            replies.push({ jid, name: chat.name, msg: curr.text, time: Number(curr.timestamp) });
-          }
-        }
-      });
-      // Sort terbaru
-      replies.sort((a, b) => b.time - a.time);
-      const top = replies.slice(0, 10);
-      if (top.length === 0) {
-        el.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-family: JetBrains Mono, monospace; font-size: 11px;">NO_RECENT_ACTIVITY</div>';
-        return;
-      }
-      el.innerHTML = top.map(r => {
-        const t = new Date(r.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        return `<div class="recent-reply-item">
-          <div class="rri-avatar"><i class="fa-solid fa-reply"></i></div>
-          <div class="rri-info">
-            <div class="rri-name">${r.name}</div>
-            <div class="rri-msg">${r.msg}</div>
-          </div>
-          <div class="rri-time">${t}</div>
-        </div>`;
-      }).join('');
+  // ==================== CHAT DATA ====================
+  function appendMessageToLocal(msg) {
+    const jid = msg.from; if (!jid) return;
+    if (!chats[jid]) {
+      const fb = msg.pushName && !isRawName(msg.pushName) ? msg.pushName : stripJid(jid);
+      chats[jid] = { name: fb, isGroup: jid.endsWith('@g.us'), messages: [] };
+    } else if (msg.pushName?.trim() && !isRawName(msg.pushName)) {
+      if (isRawName(chats[jid].name)) chats[jid].name = msg.pushName.trim();
     }
+    chats[jid].messages.push(msg);
+    chats[jid].messages.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+  }
 
-    function saveAiSettings() {
-      const key = document.getElementById('apiKeyInput').value;
-      const prompt = document.getElementById('systemPromptInput').value;
-      const trigger = document.getElementById('aiTriggerInput').value;
-      socket.emit('save_ai_config', { apiKey: key, prompt: prompt, trigger: trigger }, () => {
-        alert('Konfigurasi tersimpan!');
-      });
+  function getTickIcon(s) {
+    if (s === 3 || s === 'read') return '<i class="fa-solid fa-check-double tick tick-blue"></i>';
+    if (s === 2 || s === 'delivered') return '<i class="fa-solid fa-check-double tick tick-grey"></i>';
+    return '<i class="fa-solid fa-check tick tick-grey"></i>';
+  }
+
+  function renderChatList() {
+    const el = document.getElementById('chatList');
+    const sorted = Object.keys(chats).sort((a, b) => {
+      const la = chats[a].messages[chats[a].messages.length - 1]?.timestamp || 0;
+      const lb = chats[b].messages[chats[b].messages.length - 1]?.timestamp || 0;
+      return Number(lb) - Number(la);
+    });
+    if (sorted.length === 0) return;
+    el.innerHTML = '';
+    sorted.forEach(jid => {
+      const chat = chats[jid]; const last = chat.messages[chat.messages.length - 1];
+      const tick = last?.isMe ? getTickIcon(last.status || 3) : '';
+      const item = document.createElement('div'); item.className = 'chat-card'; item.onclick = () => openRoomOverlay(jid);
+      const ppHtml = ppCache[jid] ? `<img src="${ppCache[jid]}" onload="this.classList.add('loaded')" onerror="this.remove()">` : '';
+      item.innerHTML = `<div class="avatar-box"><i class="fa-solid ${chat.isGroup ? 'fa-users' : 'fa-user'}"></i>${ppHtml}</div>
+        <div class="chat-info"><div class="chat-header-line"><span class="contact-title">${chat.name}</span><span class="timestamp">${last ? new Date(Number(last.timestamp)).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span></div><div class="preview-msg">${tick} <span>${last ? last.text : ''}</span></div></div>`;
+      el.appendChild(item);
+    });
+  }
+
+  function openRoomOverlay(jid) {
+    activeJid = jid;
+    document.getElementById('roomTitle').innerText = chats[jid]?.name || jid;
+    setRoomPP(jid); renderMessages(jid);
+    const overlay = document.getElementById('roomOverlay'); overlay.style.display = 'flex'; requestAnimationFrame(() => overlay.classList.add('active'));
+  }
+  function closeRoomOverlay() {
+    activeJid = null;
+    const overlay = document.getElementById('roomOverlay'); overlay.classList.remove('active'); setTimeout(() => overlay.style.display = 'none', 250);
+  }
+
+  function renderMessages(jid) {
+    const vp = document.getElementById('chatViewport'); vp.innerHTML = '';
+    (chats[jid]?.messages || []).forEach(msg => {
+      const bubble = document.createElement('div');
+      bubble.className = `msg-bubble ${msg.isMe ? 'sent' : 'received'}${msg.isDraft ? ' draft-bubble' : ''}`;
+      const t = new Date(Number(msg.timestamp || Date.now())).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const tick = msg.isMe ? getTickIcon(msg.status || 3) : '';
+      const draftTag = msg.isDraft ? '<span style="color:var(--neon-yellow);font-size:8px;font-family:JetBrains Mono,monospace;margin-left:4px;">DRAFT</span>' : '';
+      bubble.innerHTML = `${msg.text}${draftTag}<div class="msg-meta"><span>${t}</span>${tick}</div>`;
+      vp.appendChild(bubble);
+    });
+    vp.scrollTop = vp.scrollHeight;
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('msgInput'); const text = input.value.trim();
+    if (!text || !activeJid) return;
+    socket.emit('send_message', { to: activeJid, message: text }, (res) => { if (res?.success) input.value = ''; });
+  }
+  function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+  function handleNewChat(e) {
+    if (e.key === 'Enter') {
+      let phone = e.target.value.replace(/[^0-9]/g, ''); if (!phone) return;
+      const jid = `${phone}@s.whatsapp.net`;
+      if (!chats[jid]) chats[jid] = { name: `+${phone}`, isGroup: false, messages: [] };
+      e.target.value = ''; openRoomOverlay(jid);
     }
-  </script>
+  }
+
+  // ==================== ACTIVITY FEED ====================
+  function renderActivityFeed() {
+    const el = document.getElementById('activityFeed');
+    if (activityLogs.length === 0) { el.innerHTML = '<div class="feed-empty"><i class="fa-solid fa-satellite-dish"></i>&nbsp; MENUNGGU AKTIVITAS...</div>'; return; }
+    el.innerHTML = activityLogs.map(e => {
+      const t = new Date(e.ts || Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      let iconClass, iconFA;
+      if (e.type === 'draft') { iconClass = 'draft'; iconFA = 'fa-pen'; }
+      else if (e.type === 'success') { iconClass = ''; iconFA = 'fa-check'; }
+      else { iconClass = 'fail'; iconFA = 'fa-xmark'; }
+      let replyHtml;
+      if (e.type === 'draft') replyHtml = `<div class="feed-reply" style="border-left:2px solid var(--neon-yellow);padding-left:6px;">${escHtml(e.reply||'')}</div><div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--neon-yellow);margin-top:2px;">DRAFT</div>`;
+      else if (e.type === 'success') replyHtml = `<div class="feed-reply">${escHtml(e.reply||'')}</div>`;
+      else replyHtml = `<div class="feed-reply fail-text">${escHtml(e.error||'Unknown')}</div>`;
+      const latHtml = e.latency ? `<div class="feed-latency">${e.latency}ms</div>` : '';
+      return `<div class="feed-item"><div class="feed-icon ${iconClass}"><i class="fa-solid ${iconFA}"></i></div><div class="feed-body"><div class="feed-name">${escHtml(e.name||'?')}</div><div class="feed-query">${escHtml(e.query||'')}</div>${replyHtml}</div><div class="feed-meta"><div class="feed-time">${t}</div>${latHtml}</div></div>`;
+    }).join('');
+  }
+
+  function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function saveAiSettings() {
+    socket.emit('save_ai_config', {
+      apiKey: document.getElementById('apiKeyInput').value,
+      apiBaseUrl: document.getElementById('apiBaseUrlInput').value,
+      model: document.getElementById('modelInput').value,
+      systemPrompt: document.getElementById('systemPromptInput').value,
+      triggerPrefix: document.getElementById('aiTriggerInput').value,
+    }, (res) => {
+      const fb = document.getElementById('saveAiFeedback');
+      if (res?.success) { fb.className = 'modal-feedback ok'; fb.innerText = 'Tersimpan!'; }
+      else { fb.className = 'modal-feedback err'; fb.innerText = 'Gagal!'; }
+      setTimeout(() => { fb.className = 'modal-feedback'; }, 3000);
+    });
+  }
+</script>
 </body>
 </html>

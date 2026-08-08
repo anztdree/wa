@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { connectWhatsApp, sendMessage, currentWaStatus, getPPCache, getNameCache } from './src/connection.js';
+import { connectWhatsApp, sendMessage, currentWaStatus, getPPCache, getNameCache, getAIConfig, setAIConfig, setAutoReplyEnabled, setSendMode, getSessionStats } from './src/connection.js';
 import { getAllMessages } from './src/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +43,10 @@ io.on('connection', (socket) => {
   const nameData = getNameCache();
   if (Object.keys(nameData).length > 0) socket.emit('name_cache', nameData);
 
+  // Kirim AI config + session stats ke UI
+  socket.emit('ai_config', getAIConfig());
+  socket.emit('session_stats', getSessionStats());
+
   socket.on('send_message', async (data, callback) => {
     try {
       await sendMessage(data.to, data.message);
@@ -50,6 +54,23 @@ io.on('connection', (socket) => {
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }
+  });
+
+  socket.on('save_ai_config', (data, callback) => {
+    try {
+      setAIConfig(data);
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('toggle_autoreply', (data) => {
+    setAutoReplyEnabled(data.enabled);
+  });
+
+  socket.on('set_send_mode', (data) => {
+    setSendMode(data.mode);
   });
 });
 

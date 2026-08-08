@@ -11,6 +11,11 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { saveMessage } from './db.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const logger = pino({ level: 'silent' });
+const CACHE_DIR = path.join(__dirname, '..');
+
 // ==================== LOGGER STYLISH ====================
 const log = {
   info:  (msg, ...args) => console.log(`\x1b[36m[ℹ️]\x1b[0m  ${msg}`, ...args),
@@ -26,25 +31,253 @@ const log = {
   sep:   ()           => console.log('\x1b[90m' + '─'.repeat(50) + '\x1b[0m'),
 };
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const logger = pino({ level: 'silent' });
-
 let sock = null;
 export let currentWaStatus = 'close';
 const groupMetadataCache = new Map();
 const ppCache = new Map();
 const nameCache = new Map();
-const noPPSet = new Set(); // JIDs yang sudah diketahui tidak punya PP
+const noPPSet = new Set();
+const repliedMsgIds = new Set(); // dedup auto-reply
+const processedMsgIds = new Set(); // dedup ALL message processing
 
 // Helper: cek apakah JID adalah personal (bukan grup/status)
 const isPersonalJid = (jid) => jid && (jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid'));
 
-const CACHE_DIR = path.join(__dirname, '..');
 const PP_CACHE_FILE = path.join(CACHE_DIR, 'pp_cache.json');
 const NAME_CACHE_FILE = path.join(CACHE_DIR, 'name_cache.json');
 const NO_PP_FILE = path.join(CACHE_DIR, 'no_pp_set.json');
+
+// ==================== AUTO-REPLY CONFIG ====================
+const AI_CONFIG_FILE = path.join(CACHE_DIR, 'ai_config.json');
+
+const defaultAIConfig = {
+  enabled: false,
+  sendMode: 'draft', // 'draft' = preview saja, 'auto' = kirim langsung
+  apiKey: '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',
+  systemPrompt: `Kamu adalah asisten WhatsApp yang sopan dan membantu. Jawab singkat, jelas, dan sopan dalam bahasa yang sama dengan pengguna.`,
+  triggerPrefix: '',
+  apiBaseUrl: 'https://integrate.api.nvidia.com/v1/chat/completions',
+  model: 'google/gemma-4-31b-it',
+  maxTokens: 16384,
+  temperature: 1,
+  topP: 0.95,
+  enableThinking: true,
+};
+
+let aiConfig = { ...defaultAIConfig };
+
+function loadAIConfig() {
+  try {
+    if (fs.existsSync(AI_CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf-8'));
+      aiConfig = { ...defaultAIConfig, ...data };
+      log.info(`⚙️  AI config loaded (enabled=${aiConfig.enabled}, model=${aiConfig.model})`);
+    }
+  } catch (e) {
+    log.warn(`Gagal load AI config: ${e.message}`);
+  }
+}
+
+function saveAIConfigToFile() {
+  try { fs.writeFileSync(AI_CONFIG_FILE, JSON.stringify(aiConfig, null, 2)); } catch (e) {}
+}
+
+loadAIConfig();
+
+// ==================== SESSION STATS (in-memory) ====================
+const sessionStats = {
+  startTime: Date.now(),
+  incoming: 0,
+  replied: 0,
+  failed: 0,
+  totalLatency: 0,
+};
+
+export function getSessionStats() {
+  const uptime = Date.now() - sessionStats.startTime;
+  return {
+    ...sessionStats,
+    uptime,
+    avgLatency: sessionStats.replied > 0 ? Math.round(sessionStats.totalLatency / sessionStats.replied) : 0,
+  };
+}
+
+function resetSessionStats() {
+  sessionStats.startTime = Date.now();
+  sessionStats.incoming = 0;
+  sessionStats.replied = 0;
+  sessionStats.failed = 0;
+  sessionStats.totalLatency = 0;
+  repliedMsgIds.clear();
+  processedMsgIds.clear();
+}
+
+// ==================== AUTO-REPLY ENGINE ====================
+export function getAIConfig() {
+  return { ...aiConfig, apiKey: aiConfig.apiKey ? '***' : '' };
+}
+
+export function setAIConfig(newConfig) {
+  if (newConfig.apiKey !== undefined) aiConfig.apiKey = newConfig.apiKey;
+  if (newConfig.systemPrompt !== undefined) aiConfig.systemPrompt = newConfig.systemPrompt;
+  if (newConfig.triggerPrefix !== undefined) aiConfig.triggerPrefix = newConfig.triggerPrefix;
+  if (newConfig.apiBaseUrl !== undefined) aiConfig.apiBaseUrl = newConfig.apiBaseUrl;
+  if (newConfig.model !== undefined) aiConfig.model = newConfig.model;
+  saveAIConfigToFile();
+  log.ok(`⚙️  AI config updated (enabled=${aiConfig.enabled}, model=${aiConfig.model})`);
+}
+
+export function setAutoReplyEnabled(enabled) {
+  aiConfig.enabled = enabled;
+  saveAIConfigToFile();
+  log.info(`🤖 Auto-reply ${enabled ? 'AKTIF' : 'NONAKTIF'}`);
+}
+
+export function setSendMode(mode) {
+  if (mode !== 'draft' && mode !== 'auto') return;
+  aiConfig.sendMode = mode;
+  saveAIConfigToFile();
+  log.info(`🤖 Send mode → ${mode === 'draft' ? 'DRAFT (preview only)' : 'AUTO (kirim langsung)'}`);
+}
+
+async function callAI(userMessage, senderName) {
+  if (!aiConfig.apiKey) {
+    log.warn(`🤖 AI API key belum di-set, skip auto-reply`);
+    return null;
+  }
+
+  const messages = [
+    { role: 'system', content: aiConfig.systemPrompt },
+    { role: 'user', content: userMessage },
+  ];
+
+  try {
+    log.info(`🤖 Mengirim ke AI (${aiConfig.model})...`);
+    const body = {
+      model: aiConfig.model,
+      messages,
+      stream: false,
+      temperature: aiConfig.temperature ?? 1,
+      top_p: aiConfig.topP ?? 0.95,
+      max_tokens: aiConfig.maxTokens ?? 16384,
+    };
+    if (aiConfig.enableThinking) body.chat_template_kwargs = { enable_thinking: true };
+    const res = await fetch(aiConfig.apiBaseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aiConfig.apiKey}`,
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      log.fail(`🤖 AI API error ${res.status}: ${errText.substring(0, 200)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const reply = data.choices?.[0]?.message?.content?.trim();
+    if (reply) {
+      log.ok(`🤖 AI reply (${reply.length} chars): "${reply.substring(0, 80)}..."`);
+      return reply;
+    }
+    log.warn(`🤖 AI response kosong`);
+    return null;
+  } catch (e) {
+    log.fail(`🤖 AI request gagal: ${e.message}`);
+    return null;
+  }
+}
+
+async function handleAutoReply(from, text, displayName, emitEvent) {
+  if (!aiConfig.enabled) return;
+  if (!text || !text.trim()) return;
+  if (!sock || currentWaStatus !== 'open') return;
+
+  const trigger = aiConfig.triggerPrefix?.trim();
+  if (trigger) {
+    if (!text.trim().startsWith(trigger)) return;
+    text = text.trim().slice(trigger.length).trim();
+    if (!text) return;
+  }
+
+  // Jangan auto-reply di grup
+  if (from.endsWith('@g.us')) return;
+
+  sessionStats.incoming++;
+  const t0 = Date.now();
+  log.info(`🤖 Auto-reply triggered → ${displayName}: "${text.substring(0, 60)}"`);
+
+  // Kirim typing indicator ("sedang mengetik...") ke pengirim
+  try { await sock.sendPresenceUpdate('composing', from); } catch (e) {}
+
+  const reply = await callAI(text, displayName);
+
+  // Hentikan typing indicator
+  try { await sock.sendPresenceUpdate('paused', from); } catch (e) {}
+
+  if (!reply) {
+    sessionStats.failed++;
+    if (emitEvent) {
+      emitEvent('auto_reply_log', { type: 'fail', from, name: displayName, query: text.substring(0, 80), error: 'AI tidak merespons', ts: t0 });
+      emitEvent('session_stats', getSessionStats());
+    }
+    return;
+  }
+
+  // Jeda 2 detik biar keliatan alami (simulasi ngetik)
+  await new Promise(r => setTimeout(r, 2000));
+
+  // Nyalain typing indicator lagi selama jeda
+  try { await sock.sendPresenceUpdate('composing', from); } catch (e) {}
+  await new Promise(r => setTimeout(r, 2000));
+  try { await sock.sendPresenceUpdate('paused', from); } catch (e) {}
+
+  const ts = Date.now();
+  const latency = ts - t0;
+  const isDraft = aiConfig.sendMode === 'draft';
+
+  if (isDraft) {
+    // ===== DRAFT MODE: simpan ke DB + tampil di dashboard, JANGAN kirim =====
+    saveMessage(from, 'BOT-DRAFT', reply, false, ts);
+    if (emitEvent) {
+      emitEvent('new_message', {
+        from, pushName: 'BOT (DRAFT)', text: reply, isMe: false, isDraft: true, timestamp: ts,
+        profilePictureUrl: ppCache.get(from) || '',
+      });
+      emitEvent('auto_reply_log', { type: 'draft', from, name: displayName, query: text.substring(0, 80), reply: reply.substring(0, 120), latency, ts });
+      emitEvent('session_stats', getSessionStats());
+    }
+    log.info(`🤖 [DRAFT] Preview untuk ${displayName} (${latency}ms) — TIDAK terkirim`);
+  } else {
+    // ===== AUTO MODE: kirim langsung ke WhatsApp =====
+    try {
+      await sock.sendMessage(from, { text: reply });
+      sessionStats.replied++;
+      sessionStats.totalLatency += latency;
+      saveMessage(from, 'BOT', reply, true, ts);
+      if (emitEvent) {
+        emitEvent('new_message', {
+          from, pushName: 'BOT', text: reply, isMe: true, timestamp: ts,
+          profilePictureUrl: ppCache.get(from) || '',
+        });
+        emitEvent('auto_reply_log', { type: 'success', from, name: displayName, query: text.substring(0, 80), reply: reply.substring(0, 120), latency, ts });
+        emitEvent('session_stats', getSessionStats());
+      }
+      log.ok(`🤖 Auto-reply terkirim ke ${displayName} (${latency}ms)`);
+    } catch (e) {
+      sessionStats.failed++;
+      if (emitEvent) {
+        emitEvent('auto_reply_log', { type: 'fail', from, name: displayName, query: text.substring(0, 80), error: e.message, ts: t0 });
+        emitEvent('session_stats', getSessionStats());
+      }
+      log.fail(`🤖 Gagal kirim auto-reply: ${e.message}`);
+    }
+  }
+}
 
 // ==================== PERSISTENCE ====================
 function loadJSONCache(filePath) {
@@ -252,9 +485,11 @@ export async function connectWhatsApp(emitEvent) {
     } else if (connection === 'open') {
       log.ok('🟢 WhatsApp CONNECTED!');
       log.sep();
+      resetSessionStats();
 
       // Kirim cache ke UI saat koneksi baru
       if (emitEvent) {
+        emitEvent('session_stats', getSessionStats());
         if (nameCache.size > 0) {
           emitEvent('name_cache', Object.fromEntries(nameCache));
           log.info(`📡 name_cache dikirim ke UI → ${nameCache.size} entries`);
@@ -360,7 +595,7 @@ export async function connectWhatsApp(emitEvent) {
     let savedCount = 0;
     if (messages && messages.length > 0) {
       for (const msg of messages) {
-        await processIncomingMessage(msg, emitEvent);
+        await processIncomingMessage(msg, emitEvent, false);
         const jid = msg.key?.remoteJid;
         if (jid && jid !== 'status@broadcast') allJids.add(jid);
         savedCount++;
@@ -392,19 +627,33 @@ export async function connectWhatsApp(emitEvent) {
     }
   });
 
-  sock.ev.on('messages.upsert', async ({ messages }) => {
+  sock.ev.on('messages.upsert', async ({ type, messages }) => {
+    // HANYA proses pesan realtime baru (type 'notify')
+    // History sync memakai messaging-history.set, BUKAN messages.upsert notify
+    if (type !== 'notify') return;
     for (const msg of messages) {
-      await processIncomingMessage(msg, emitEvent);
+      await processIncomingMessage(msg, emitEvent, true);
     }
   });
+
+  // Kirim AI config + session stats ke UI saat connect
+  if (emitEvent) {
+    emitEvent('ai_config', getAIConfig());
+    emitEvent('session_stats', getSessionStats());
+  }
 
   log.info(`Socket created → browser: Ubuntu/Chrome/20.0.04`);
   return sock;
 }
 
 // ==================== PROCESS MESSAGE ====================
-async function processIncomingMessage(msg, emitEvent) {
+async function processIncomingMessage(msg, emitEvent, canAutoReply = false) {
   if (!msg.message || msg.key.remoteJid === 'status@broadcast') return;
+
+  // ===== DEDUP: skip pesan yang SUDAH diproses (dari path mana pun) =====
+  const msgId = msg.key?.id;
+  if (msgId && processedMsgIds.has(msgId)) return;
+  if (msgId) processedMsgIds.add(msgId);
 
   const from = msg.key.remoteJid;
   const isMe = msg.key.fromMe;
@@ -430,6 +679,16 @@ async function processIncomingMessage(msg, emitEvent) {
         profilePictureUrl: ppCache.get(from) || ''
       });
       fetchPP(from, emitEvent);
+    }
+
+    // ==================== AUTO-REPLY ====================
+    // HANYA pesan realtime baru (canAutoReply=true), dedup by msg ID
+    if (canAutoReply && !isMe && from !== 'status@broadcast') {
+      if (msgId && repliedMsgIds.has(msgId)) return;
+      if (msgId) repliedMsgIds.add(msgId);
+      handleAutoReply(from, text, displayName, emitEvent).catch(e => {
+        log.fail(`🤖 Auto-reply error: ${e.message}`);
+      });
     }
   }
 }
