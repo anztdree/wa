@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BOT_CORE — Dashboard</title>
+  <meta name="color-scheme" content="dark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="/" crossorigin>
+  <script src="/socket.io/socket.io.js" defer></script>
+  <style>
+    :root {
+      --bg: #0c0e14;
+      --bg-card: #141720;
+      --bg-card-alt: #1a1e2e;
+      --bg-hover: #1e2236;
+      --border: #1f2438;
+      --text: #e4e6ed;
+      --text2: #8b90a8;
+      --text3: #4e5370;
+      --accent: #00d4ff;
+      --accent-soft: rgba(0,212,255,0.08);
+      --green: #2dd4a0;
+      --green-soft: rgba(45,212,160,0.08);
+      --red: #f0616a;
+      --red-soft: rgba(240,97,106,0.08);
+      --yellow: #f0b429;
+      --yellow-soft: rgba(240,180,41,0.08);
+      --purple: #a78bfa;
+      --purple-soft: rgba(167,139,250,0.08);
+      --orange: #fb923c;
+      --orange-soft: rgba(251,146,60,0.08);
+      --radius: 14px;
+      --radius-sm: 10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+    /* ===== TOP BAR ===== */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; z-index: 10;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 8px; }
+    .topbar-logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff; font-weight: 800;
+    }
+    .topbar-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.5px; }
+    .topbar-sub { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+    /* ===== TAB NAV ===== */
+    .tab-nav { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 7px 14px; border-radius: 8px; border: 1px solid transparent;
+      background: transparent; color: var(--text2); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; font-family: inherit; display: flex; align-items: center; gap: 6px;
+    }
+    .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+    .tab-btn.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(0,212,255,0.2); }
+
+
+    /* ===== MAIN CONTENT ===== */
+    .content { flex: 1; overflow: hidden; position: relative; }
+    .tab-panel { position: absolute; inset: 0; overflow-y: auto; padding: 14px 16px; display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ===== KPI GRID 2x2 ===== */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .kpi {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px; position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .kpi.k-in::before { background: var(--accent); }
+    .kpi.k-auto::before { background: var(--green); }
+    .kpi.k-fail::before { background: var(--red); }
+    .kpi.k-lat::before { background: var(--purple); }
+    .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .kpi-label { font-size: 9px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+    .kpi-icon {
+      width: 26px; height: 26px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; font-size: 10px;
+    }
+    .kpi.k-in .kpi-icon { background: var(--accent-soft); color: var(--accent); }
+    .kpi.k-auto .kpi-icon { background: var(--green-soft); color: var(--green); }
+    .kpi.k-fail .kpi-icon { background: var(--red-soft); color: var(--red); }
+    .kpi.k-lat .kpi-icon { background: var(--purple-soft); color: var(--purple); }
+    .kpi-value { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 3px; }
+    .kpi.k-in .kpi-value { color: var(--accent); }
+    .kpi.k-auto .kpi-value { color: var(--green); }
+    .kpi.k-fail .kpi-value { color: var(--red); }
+    .kpi.k-lat .kpi-value { color: var(--purple); }
+    .kpi-sub { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+    /* ===== CARDS ===== */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+    .card-head { padding: 12px 14px 8px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+    .card-badge {
+      font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .card-body { padding: 0 14px 14px; }
+
+    /* ===== CONNECTION STATUS ===== */
+    .conn-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+    .conn-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--text3); transition: background 0.3s;
+    }
+    .conn-dot.open { background: var(--green); box-shadow: 0 0 8px rgba(45,212,160,0.5); }
+    .conn-dot.connecting { background: var(--yellow); animation: pulse 1.5s infinite; }
+    .conn-dot.close { background: var(--red); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .conn-info { flex: 1; }
+    .conn-status { font-size: 13px; font-weight: 600; }
+    .conn-detail { font-size: 10px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+    .conn-actions { display: flex; gap: 6px; }
+    .conn-btn {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-hover); color: var(--text2); font-size: 10px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .conn-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: rgba(0,212,255,0.3); }
+
+    /* ===== SPLIT ROW (2 col) ===== */
+    .split-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+    /* ===== TOGGLE BOX (separate, big toggle, no description) ===== */
+    .toggle-box {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .toggle-box:hover { border-color: var(--accent-soft); background: var(--bg-hover); }
+    .toggle-box-head {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; gap: 8px;
+    }
+    .toggle-box-title {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 700; color: var(--text);
+    }
+
+    .toggle-box-status {
+      font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px;
+    }
+    .toggle-box-status.on { background: var(--green-soft); color: var(--green); }
+    .toggle-box-status.off { background: var(--red-soft); color: var(--red); }
+
+    /* ===== BIG TOGGLE ===== */
+    .toggle {
+      width: 72px; height: 36px; border-radius: 18px; position: relative;
+      background: var(--bg-hover); border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.3s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent-soft); border-color: rgba(0,212,255,0.5); box-shadow: 0 0 12px rgba(0,212,255,0.15); }
+    .toggle::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--text3); transition: all 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .toggle.on::after { left: 39px; background: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.5); }
+
+    /* ===== AI ENGINE CARD ===== */
+    .ai-info-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+    .ai-info-row:last-child { border-bottom: none; }
+    .ai-info-label { font-size: 10px; color: var(--text3); min-width: 60px; }
+    .ai-info-value { font-size: 11px; font-weight: 600; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+
+    /* ===== TIMELINE (FULL WIDTH) ===== */
+    .timeline { display: flex; flex-direction: column; gap: 6px; }
+    .tl-item {
+      display: flex; gap: 10px; padding: 10px 12px;
+      background: var(--bg-card-alt); border-radius: var(--radius-sm);
+      border-left: 3px solid var(--border); transition: border-color 0.2s;
+    }
+    .tl-item.incoming { border-left-color: var(--accent); }
+    .tl-item.draft { border-left-color: var(--yellow); }
+    .tl-item.sent { border-left-color: var(--green); }
+    .tl-item.error { border-left-color: var(--red); }
+    .tl-item.system { border-left-color: var(--purple); }
+    .tl-avatar {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      background: var(--bg-hover); display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text2); overflow: hidden;
+    }
+    .tl-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tl-content { flex: 1; min-width: 0; }
+    .tl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .tl-name { font-size: 11px; font-weight: 700; }
+    .tl-time { font-size: 9px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+    .tl-text { font-size: 12px; color: var(--text); line-height: 1.4; word-break: break-word; }
+    .tl-badge {
+      display: inline-block; font-size: 8px; font-weight: 700; padding: 2px 6px;
+      border-radius: 4px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .tl-badge.draft { background: var(--yellow-soft); color: var(--yellow); }
+    .tl-badge.bot { background: var(--green-soft); color: var(--green); }
+    .tl-badge.fail { background: var(--red-soft); color: var(--red); }
+    .tl-empty {
+      text-align: center; padding: 30px; color: var(--text3); font-size: 12px;
+    }
+
+    /* ===== AI SKILL TAB ===== */
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .settings-title { font-size: 16px; font-weight: 800; }
+    .settings-subtitle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    /* ===== API KEY STATUS BADGE ===== */
+    .apikey-status {
+      display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end;
+    }
+    .apikey-badge {
+      font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.3px;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .apikey-badge.env      { background: var(--green-soft); color: var(--green); }
+    .apikey-badge.config   { background: var(--yellow-soft); color: var(--yellow); }
+    .apikey-badge.missing  { background: var(--red-soft); color: var(--red); }
+    .apikey-badge.optional { background: var(--purple-soft); color: var(--purple); }
+    .apikey-badge::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    }
+    .apikey-link {
+      font-size: 9px; color: var(--accent); text-decoration: none; font-weight: 600;
+    }
+    .apikey-link:hover { text-decoration: underline; }
+
+    /* ===== READ-ONLY DISPLAY ===== */
+    .setting-readonly {
+      font-size: 10px; color: var(--text2); font-family: 'JetBrains Mono', monospace;
+      text-align: right; max-width: 220px; word-break: break-all; line-height: 1.4;
+    }
+
+    /* ===== ADVANCED (collapsible) ===== */
+    .advanced-section {
+      margin: 10px 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--bg-card-alt); overflow: hidden;
+    }
+    .advanced-summary {
+      padding: 8px 12px; font-size: 10px; font-weight: 700; color: var(--text2);
+      cursor: pointer; user-select: none; text-transform: uppercase; letter-spacing: 0.5px;
+      list-style: none;
+    }
+    .advanced-summary::-webkit-details-marker { display: none; }
+    .advanced-summary::before { content: '▸ '; color: var(--text3); transition: transform 0.2s; display: inline-block; }
+    .advanced-section[open] .advanced-summary::before { transform: rotate(90deg); }
+    .advanced-section[open] .advanced-summary { border-bottom: 1px solid var(--border); }
+
+    /* ===== SETTINGS DIVIDER ===== */
+    .settings-divider {
+      font-size: 9px; font-weight: 700; color: var(--text3); text-transform: uppercase;
+      letter-spacing: 1px; padding: 14px 0 4px; margin-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ===== SETTINGS SECTION ===== */
+    .settings-section {
+      margin-top: 0;
+    }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .btn-save-config {
+      width: 100%; padding: 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--accent); background: var(--accent-soft);
+      color: var(--accent); font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 12px;
+    }
+    .btn-save-config:hover { background: var(--accent); color: #000; }
+    .btn-save-config:active { transform: scale(0.97); }
+    .btn-save-config.saved { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+    .setting-label { font-size: 11px; color: var(--text2); }
+    .setting-input {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-alt, #0c0e14); color: var(--text); font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; width: 200px; outline: none;
+    }
+    .setting-input:focus { border-color: var(--accent); }
+    .setting-select {
+      padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg-alt, #0c0e14); color: var(--text); font-size: 11px;
+      font-family: inherit; width: 200px; outline: none; cursor: pointer;
+    }
+    .setting-select:focus { border-color: var(--accent); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 480px) {
+      .split-row { grid-template-columns: 1fr; }
+      .kpi-grid { gap: 8px; }
+      .kpi-value { font-size: 22px; }
+      .topbar { padding: 8px 12px; }
+      .tab-panel { padding: 10px 12px; }
+    }
+
+    /* ===== SVG ICON ===== */
+    svg.icon { width: 1em; height: 1em; vertical-align: -0.125em; display: inline-block; }
+    .tab-btn svg.icon { width: 11px; height: 11px; }
+    .toggle-box-title svg.icon { width: 13px; height: 13px; }
+
+    /* ===== AI PROVIDER CARDS ===== */
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .provider-card {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      user-select: none;
+    }
+    .provider-card:hover {
+      border-color: rgba(0,212,255,0.3);
+      background: var(--bg-hover);
+    }
+    .provider-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(0,212,255,0.15), inset 0 0 0 1px rgba(0,212,255,0.1);
+      background: var(--bg-hover);
+    }
+    .provider-card-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .provider-card-icon {
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .provider-card-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .provider-card-limit {
+      font-size: 9px;
+      color: var(--text3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .provider-card-link {
+      font-size: 9px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      align-self: flex-start;
+    }
+    .provider-card-link:hover { text-decoration: underline; }
+
+    /* ===== MODEL SELECTOR ===== */
+    .model-selector {
+      margin-bottom: 12px;
+    }
+    .model-selector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .model-selector-label {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 600;
+    }
+    .model-selector-count {
+      font-size: 9px;
+      color: var(--text3);
+    }
+    .btn-refresh-models {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text2);
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-refresh-models:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-refresh-models.loading {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .btn-refresh-models .spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .model-no-key {
+      text-align: center;
+      padding: 16px 10px;
+      color: var(--text3);
+      font-size: 11px;
+    }
+    .model-no-key a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .model-no-key a:hover {
+      text-decoration: underline;
+    }
+    .model-no-key code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-alt, #0c0e14);
+      color: var(--accent);
+      border: 1px solid var(--border);
+    }
+    .model-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card-alt);
+      padding: 4px;
+    }
+    .model-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .model-item:hover {
+      background: var(--bg-hover);
+    }
+    .model-item.selected {
+      background: var(--accent-soft);
+      border: 1px solid rgba(0,212,255,0.2);
+    }
+    .model-item.selected .model-item-name {
+      color: var(--accent);
+    }
+    .model-item-icon {
+      font-size: 14px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .model-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .model-item-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .model-item-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .model-tag {
+      font-size: 8px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .model-tag.best     { background: var(--green-soft); color: var(--green); }
+    .model-tag.fast     { background: var(--accent-soft); color: var(--accent); }
+    .model-tag.popular  { background: var(--purple-soft); color: var(--purple); }
+    .model-tag.reason   { background: var(--yellow-soft); color: var(--yellow); }
+    .model-tag.power    { background: var(--orange-soft); color: var(--orange); }
+    .model-item-desc {
+      font-size: 9px;
+      color: var(--text3);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .model-item-meta {
+      font-size: 8px;
+      color: var(--text3);
+      margin-top: 1px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .model-meta-chip {
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: var(--bg-alt, #0c0e14);
+      white-space: nowrap;
+    }
+    .model-meta-chip.free {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+    .model-tag.free     { background: var(--green-soft); color: var(--green); }
+    .model-empty {
+      text-align: center;
+      padding: 14px;
+      color: var(--text3);
+      font-size: 11px;
+    }
+    .provider-section-title {
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 480px) {
+      .provider-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+      .provider-card { padding: 10px 8px; }
+      .model-list { max-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="fa-chart-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="fa-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9" r="5"/><circle cx="16" cy="9" r="5"/><path d="M8 14v6a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-6"/></symbol>
+    <symbol id="fa-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></symbol>
+    <symbol id="fa-paper-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
+    <symbol id="fa-exclamation-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="fa-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="fa-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 7V2"/><path d="M15 7V2"/><path d="M18 7v5a6 6 0 0 1-12 0V7z"/></symbol>
+    <symbol id="fa-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="9" width="14" height="12" rx="2"/><path d="M12 3v6"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/><path d="M9 18h6"/></symbol>
+    <symbol id="fa-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="fa-microchip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></symbol>
+    <symbol id="fa-stream" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="18" y2="18"/></symbol>
+    <symbol id="fa-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="fa-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="fa-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="fa-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></symbol>
+    <symbol id="fa-calculator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="8.01" y2="12"/><line x1="12" y1="12" x2="12.01" y2="12"/><line x1="16" y1="12" x2="16.01" y2="12"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></symbol>
+    <symbol id="fa-language" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 12"/><path d="m19 8-6 12"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/></symbol>
+    <symbol id="fa-compress-alt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></symbol>
+    <symbol id="fa-cog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="fa-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="fa-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="fa-exclamation" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></symbol>
+    <symbol id="fa-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  </svg>
+  <div class="app">
+    <!-- ===== TOP BAR ===== -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <div class="topbar-logo">B</div>
+        <div>
+          <div class="topbar-title">BOT_CORE</div>
+          <div class="topbar-sub" id="uptimeDisplay">00:00:00</div>
+        </div>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">
+          <svg class="icon"><use href="#fa-chart-line"/></svg> Dashboard
+        </button>
+        <button class="tab-btn" data-tab="settings">
+          <svg class="icon"><use href="#fa-cog"/></svg> AI Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== CONTENT ===== -->
+    <div class="content">
+
+      <!-- ==================== TAB: DASHBOARD ==================== -->
+      <div class="tab-panel active" id="panel-dashboard">
+
+        <!-- KPI 2x2 (Draft dihapus, diganti Avg Latency) -->
+        <div class="kpi-grid">
+          <div class="kpi k-in">
+            <div class="kpi-top">
+              <span class="kpi-label">Incoming</span>
+              <div class="kpi-icon"><svg class="icon"><use href="#fa-arrow-down"/></svg></div>
+            </div>
+            <div class="kpi-value" id="kpiIncoming">0</div>
+            <div class="kpi-sub">pesan masuk</div>
+          </div>
+          <div class="kpi k-auto">
+            <div class="kpi-top">
+              <span class="kpi-label">Auto Sent</span>
+              <div class="kpi-icon"><svg class="icon"><use href="#fa-paper-plane"/></svg></div>
+            </div>
+            <div class="kpi-value" id="kpiAuto">0</div>
+            <div class="kpi-sub">terkirim</div>
+          </div>
+          <div class="kpi k-fail">
+            <div class="kpi-top">
+              <span class="kpi-label">Failed</span>
+              <div class="kpi-icon"><svg class="icon"><use href="#fa-exclamation-triangle"/></svg></div>
+            </div>
+            <div class="kpi-value" id="kpiFail">0</div>
+            <div class="kpi-sub">gagal</div>
+          </div>
+          <div class="kpi k-lat">
+            <div class="kpi-top">
+              <span class="kpi-label">Avg Latency</span>
+              <div class="kpi-icon"><svg class="icon"><use href="#fa-bolt"/></svg></div>
+            </div>
+            <div class="kpi-value" id="kpiLatency">0 ms</div>
+            <div class="kpi-sub">waktu respons AI</div>
+          </div>
+        </div>
+
+        <!-- Connection Status (FULL WIDTH) -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><svg class="icon" style="margin-right:6px;color:var(--accent)"><use href="#fa-plug"/></svg>Connection</span>
+            <span class="card-badge" id="connBadge" style="background:var(--red-soft);color:var(--red)">OFFLINE</span>
+          </div>
+          <div class="card-body">
+            <div class="conn-row">
+              <div class="conn-dot" id="connDot"></div>
+              <div class="conn-info">
+                <div class="conn-status" id="connStatus">Menunggu koneksi...</div>
+                <div class="conn-detail" id="connDetail">—</div>
+              </div>
+              <div class="conn-actions">
+                <span class="card-badge" id="connAIBadge" style="background:var(--red-soft);color:var(--red);font-size:10px">AI OFF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toggle Boxes: Auto-Reply & Mode Draft (terpisah, toggle besar) -->
+        <div class="split-row">
+          <div class="toggle-box" id="boxAutoReply" onclick="toggleAutoReply()">
+            <div class="toggle-box-head">
+              <span class="toggle-box-title"><svg class="icon" style="color:var(--accent)"><use href="#fa-robot"/></svg> Auto-Reply</span>
+              <span class="toggle-box-status off" id="autoReplyStatus">NONAKTIF</span>
+            </div>
+            <div class="toggle" id="toggleAI"></div>
+          </div>
+
+          <div class="toggle-box" id="boxDraft" onclick="toggleSendMode()">
+            <div class="toggle-box-head">
+              <span class="toggle-box-title"><svg class="icon" style="color:var(--yellow)"><use href="#fa-eye"/></svg> Mode Draft</span>
+              <span class="toggle-box-status on" id="draftStatus">AKTIF</span>
+            </div>
+            <div class="toggle on" id="toggleMode"></div>
+          </div>
+        </div>
+
+        <!-- AI Engine (FULL WIDTH) -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><svg class="icon" style="margin-right:6px;color:var(--purple)"><use href="#fa-microchip"/></svg>AI Engine</span>
+          </div>
+          <div class="card-body">
+            <div class="ai-info-row">
+              <span class="ai-info-label">Model</span>
+              <span class="ai-info-value" id="aiModel">—</span>
+            </div>
+            <div class="ai-info-row">
+              <span class="ai-info-label">Temp</span>
+              <span class="ai-info-value" id="aiTemp">—</span>
+            </div>
+            <div class="ai-info-row">
+              <span class="ai-info-label">Latency</span>
+              <span class="ai-info-value" id="aiLatency">— ms</span>
+            </div>
+            <div class="ai-info-row">
+              <span class="ai-info-label">Provider</span>
+              <span class="ai-info-value" id="aiProvider">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline (FULL WIDTH — kontak dihapus, timeline diperluas) -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title"><svg class="icon" style="margin-right:6px;color:var(--green)"><use href="#fa-stream"/></svg>Timeline</span>
+            <span class="card-badge" id="timelineCount" style="background:var(--green-soft);color:var(--green)">0 events</span>
+          </div>
+          <div class="card-body">
+            <div class="timeline" id="timeline">
+              <div class="tl-empty"><svg class="icon"><use href="#fa-inbox"/></svg> Belum ada aktivitas</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================== TAB: AI SETTINGS ==================== -->
+      <div class="tab-panel" id="panel-settings">
+        <div class="settings-header">
+          <div>
+            <div class="settings-title">AI Settings</div>
+            <div class="settings-subtitle">Pilih provider & model untuk auto-reply</div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <!-- Provider Selector Cards -->
+          <div class="provider-section-title">Provider</div>
+          <div class="provider-grid" id="providerGrid">
+            <div class="model-empty">Memuat provider...</div>
+          </div>
+
+          <!-- API Key Status Badge (read-only, dari .env) -->
+          <div class="setting-row">
+            <span class="setting-label">API Key</span>
+            <div class="apikey-status" id="apiKeyStatus">
+              <span class="apikey-badge" id="apikeyBadge">—</span>
+              <a class="apikey-link" id="apikeyGetLink" href="#" target="_blank" rel="noopener" style="display:none">Get Key →</a>
+            </div>
+          </div>
+
+          <!-- Base URL (read-only display, auto dari provider) -->
+          <div class="setting-row">
+            <span class="setting-label">Base URL</span>
+            <span class="setting-readonly" id="settingBaseUrlDisplay">—</span>
+          </div>
+
+          <!-- Model Selector (dynamic fetch dari provider API) -->
+          <div class="model-selector" id="modelSelector">
+            <div class="model-selector-header">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="model-selector-label">Model</span>
+                <span class="model-selector-count" id="modelCount"></span>
+              </div>
+              <button class="btn-refresh-models" id="btnRefreshModels" onclick="refreshModels()" title="Refresh daftar model dari provider">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                <span id="btnRefreshText">Refresh</span>
+              </button>
+            </div>
+            <div class="model-list" id="modelList">
+              <div class="model-empty">Pilih provider terlebih dahulu</div>
+            </div>
+          </div>
+
+          <!-- Advanced (collapsible) — Model ID manual fallback -->
+          <details class="advanced-section">
+            <summary class="advanced-summary">Advanced — Manual Model ID</summary>
+            <div class="setting-row" style="border-bottom:none;padding-top:8px">
+              <span class="setting-label">Model ID</span>
+              <input class="setting-input" type="text" id="settingModel" placeholder="ketik manual jika fetch gagal">
+            </div>
+          </details>
+
+          <div class="settings-divider">Generation</div>
+
+          <div class="setting-row">
+            <span class="setting-label">Temperature</span>
+            <input class="setting-input" type="number" id="settingTemp" step="0.1" min="0" max="2">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Top P</span>
+            <input class="setting-input" type="number" id="settingTopP" step="0.05" min="0" max="1">
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Max Tokens</span>
+            <input class="setting-input" type="number" id="settingMaxTokens" min="256" max="65536">
+          </div>
+
+          <div class="settings-divider">Behavior</div>
+
+          <div class="setting-row">
+            <span class="setting-label">System Prompt</span>
+          </div>
+          <div style="padding: 4px 0 10px;">
+            <textarea id="settingSystemPrompt" rows="4" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg-alt,#0c0e14);color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;resize:vertical;outline:none;" placeholder="Kamu adalah asisten WhatsApp yang sopan..."></textarea>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Trigger Prefix</span>
+            <input class="setting-input" type="text" id="settingTrigger" placeholder="Kosongkan = semua pesan">
+          </div>
+          <button class="btn-save-config" id="btnSaveConfig" onclick="saveAISetting()">
+            <svg class="icon"><use href="#fa-check"/></svg> Update Config
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ==================== SOCKET.IO ====================
+    let socket;
+    let aiEnabled = false;
+    let sendMode = 'draft';
+    let aiProviders = {};
+    let aiConfig = {};
+    let stats = { incoming: 0, replied: 0, failed: 0, uptime: 0, avgLatency: 0 };
+    const nameCache = {};
+    const ppCache = {};
+    const MAX_TIMELINE = 80;
+    let timelineEvents = [];
+
+    // ==================== INIT ====================
+    function initApp() {
+      socket = io();
+
+      // ==================== TAB NAVIGATION ====================
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          const panel = document.getElementById('panel-' + btn.dataset.tab);
+          if (panel) panel.classList.add('active');
+        });
+      });
+
+      // ==================== SOCKET EVENTS ====================
+      socket.on('status', (status) => {
+        updateConnectionUI(status);
+      });
+
+      socket.on('load_history', (messages) => {
+        messages.forEach(msg => addTimelineEvent(msg, true));
+        renderTimeline();
+      });
+
+      socket.on('new_message', (msg) => {
+        addTimelineEvent(msg);
+      });
+
+      socket.on('ai_config', (config) => {
+        aiConfig = config;
+        updateAIConfigUI(config);
+        renderProviderCards();
+        renderModelList();
+        // Auto-fetch models if provider already selected
+        if (config.provider) fetchModels(config.provider);
+      });
+
+      socket.on('ai_providers', (providers) => {
+        aiProviders = providers;
+        renderProviderCards();
+        renderModelList();
+      });
+
+      socket.on('session_stats', (newStats) => {
+        stats = newStats;
+        updateStatsUI();
+      });
+
+      socket.on('name_cache', (names) => {
+        Object.assign(nameCache, names);
+      });
+
+      socket.on('pp_cache', (pps) => {
+        Object.assign(ppCache, pps);
+      });
+
+      socket.on('auto_reply_log', (log) => {
+        // Draft tidak dihitung di statistik
+        if (log.type === 'success') {
+          stats.replied++;
+        } else if (log.type === 'fail') {
+          stats.failed++;
+        }
+        updateStatsUI();
+
+        // Add to timeline
+        if (log.type === 'success') {
+          addTimelineEvent({
+            type: 'system',
+            pushName: 'BOT',
+            text: `Auto-reply terkirim ke ${log.name || log.from}: "${log.reply}"`,
+            timestamp: log.ts || Date.now(),
+            systemType: 'sent'
+          });
+        } else if (log.type === 'draft') {
+          addTimelineEvent({
+            type: 'system',
+            pushName: 'BOT (DRAFT)',
+            text: `Draft untuk ${log.name || log.from}: "${log.reply}"`,
+            timestamp: log.ts || Date.now(),
+            systemType: 'draft'
+          });
+        } else if (log.type === 'fail') {
+          addTimelineEvent({
+            type: 'system',
+            pushName: 'ERROR',
+            text: `Gagal reply ke ${log.name || log.from}: ${log.error}`,
+            timestamp: log.ts || Date.now(),
+            systemType: 'error'
+          });
+        }
+      });
+
+      // ==================== UPTIME ====================
+      setInterval(() => {
+        if (!stats.uptime) return;
+        const s = Math.floor(stats.uptime / 1000);
+        const h = String(Math.floor(s / 3600)).padStart(2, '0');
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const sec = String(s % 60).padStart(2, '0');
+        document.getElementById('uptimeDisplay').textContent = `${h}:${m}:${sec}`;
+        stats.uptime += 1000;
+      }, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+
+    // ==================== CONNECTION UI ====================
+    function updateConnectionUI(status) {
+      const dot = document.getElementById('connDot');
+      const statusEl = document.getElementById('connStatus');
+      const detailEl = document.getElementById('connDetail');
+      const badge = document.getElementById('connBadge');
+
+      dot.className = 'conn-dot ' + status;
+      if (status === 'open') {
+        statusEl.textContent = 'Terhubung';
+        statusEl.style.color = 'var(--green)';
+        detailEl.textContent = 'WhatsApp aktif & siap menerima pesan';
+        badge.textContent = 'ONLINE';
+        badge.style.background = 'var(--green-soft)';
+        badge.style.color = 'var(--green)';
+      } else if (status === 'connecting') {
+        statusEl.textContent = 'Menghubungkan...';
+        statusEl.style.color = 'var(--yellow)';
+        detailEl.textContent = 'Menunggu koneksi WhatsApp...';
+        badge.textContent = 'CONNECTING';
+        badge.style.background = 'var(--yellow-soft)';
+        badge.style.color = 'var(--yellow)';
+      } else {
+        statusEl.textContent = 'Offline';
+        statusEl.style.color = 'var(--red)';
+        detailEl.textContent = 'Tidak terhubung ke WhatsApp';
+        badge.textContent = 'OFFLINE';
+        badge.style.background = 'var(--red-soft)';
+        badge.style.color = 'var(--red)';
+      }
+    }
+
+    // ==================== STATS UI ====================
+    function updateStatsUI() {
+      document.getElementById('kpiIncoming').textContent = stats.incoming || 0;
+      document.getElementById('kpiAuto').textContent = stats.replied || 0;
+      document.getElementById('kpiFail').textContent = stats.failed || 0;
+      document.getElementById('kpiLatency').textContent = (stats.avgLatency || 0) + ' ms';
+      document.getElementById('aiLatency').textContent = (stats.avgLatency || 0) + ' ms';
+    }
+
+    // ==================== AI CONFIG UI ====================
+    function updateAIConfigUI(config) {
+      aiEnabled = config.enabled || false;
+      sendMode = config.sendMode || 'draft';
+
+      // Dashboard AI Engine card
+      document.getElementById('aiModel').textContent = config.model || '—';
+      document.getElementById('aiTemp').textContent = config.temperature ?? '—';
+      const provName = aiProviders[config.provider]?.name || config.provider || '—';
+      const aiProviderEl = document.getElementById('aiProvider');
+      if (aiProviderEl) aiProviderEl.textContent = provName;
+
+      // Settings inputs
+      document.getElementById('settingModel').value = config.model || '';
+      document.getElementById('settingTemp').value = config.temperature ?? '';
+      document.getElementById('settingTopP').value = config.topP ?? '';
+      document.getElementById('settingMaxTokens').value = config.maxTokens || '';
+      document.getElementById('settingSystemPrompt').value = config.systemPrompt || '';
+      document.getElementById('settingTrigger').value = config.triggerPrefix || '';
+
+      // API Key status badge (dari .env, read-only)
+      renderApiKeyStatus(config);
+
+      // Base URL read-only display
+      const baseUrlEl = document.getElementById('settingBaseUrlDisplay');
+      if (baseUrlEl) baseUrlEl.textContent = config.apiBaseUrl || '—';
+
+      // Mode UI
+      updateModeUI();
+      // AI toggle + status badge
+      updateAutoReplyUI();
+    }
+
+    // ==================== API KEY STATUS BADGE ====================
+    function renderApiKeyStatus(config) {
+      const badge = document.getElementById('apikeyBadge');
+      const link = document.getElementById('apikeyGetLink');
+      if (!badge) return;
+
+      const status = config.envKeyStatus || 'missing';
+      const envVarName = config.envVarName || '';
+      const prov = aiProviders[config.provider];
+      const getKeyUrl = prov?.apiKeyUrl || '#';
+
+      // Reset classes
+      badge.className = 'apikey-badge';
+
+      if (status === 'env') {
+        badge.classList.add('env');
+        badge.textContent = `✓ Loaded from .env (${envVarName})`;
+        if (link) link.style.display = 'none';
+      } else if (status === 'config') {
+        badge.classList.add('config');
+        badge.textContent = `⚠ From config.json (set ${envVarName} in .env)`;
+        if (link) link.style.display = 'none';
+      } else if (status === 'optional') {
+        badge.classList.add('optional');
+        badge.textContent = 'Optional (OpenRouter)';
+        if (link) { link.href = getKeyUrl; link.style.display = ''; }
+      } else {
+        // missing
+        badge.classList.add('missing');
+        badge.textContent = `✗ Set ${envVarName} in .env`;
+        if (link) { link.href = getKeyUrl; link.style.display = ''; }
+      }
+    }
+
+    // ==================== PROVIDER CARDS ====================
+    function renderProviderCards() {
+      const grid = document.getElementById('providerGrid');
+      if (!grid) return;
+
+      const providerKeys = Object.keys(aiProviders);
+      if (providerKeys.length === 0) {
+        grid.innerHTML = '<div class="model-empty">Memuat provider...</div>';
+        return;
+      }
+
+      const currentProvider = aiConfig.provider || '';
+      let html = '';
+
+      providerKeys.forEach(provId => {
+        const prov = aiProviders[provId];
+        const isSelected = provId === currentProvider;
+        const icon = prov.icon || '🤖';
+        const name = prov.name || provId;
+        const freeLimit = prov.freeLimit || prov.free_limit || '';
+        const getKeyUrl = prov.apiKeyUrl || prov.getKeyUrl || '#';
+
+        html += `
+          <div class="provider-card${isSelected ? ' selected' : ''}" onclick="selectProvider('${provId}')">
+            <div class="provider-card-head">
+              <span class="provider-card-icon">${icon}</span>
+              <span class="provider-card-name">${escapeHtml(name)}</span>
+            </div>
+            ${freeLimit ? `<span class="provider-card-limit">${escapeHtml(freeLimit)}</span>` : ''}
+            ${getKeyUrl && getKeyUrl !== '#' ? `<a class="provider-card-link" href="${escapeHtml(getKeyUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Get Key →</a>` : ''}
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+    }
+
+    // Dynamic model list (fetched from provider API)
+    let dynamicModels = []; // [{ id, name, context, owned_by, pricing, caps, ... }]
+
+    function selectProvider(provId) {
+      const prov = aiProviders[provId];
+      if (!prov) return;
+
+      // Save provider (base URL auto-filled by backend from provider registry)
+      socket.emit('save_ai_config', { provider: provId }, (res) => {
+        if (res && res.success) {
+          showToast('Provider: ' + (prov.name || provId));
+        }
+      });
+
+      // Update local config immediately for responsive UI
+      aiConfig.provider = provId;
+      aiConfig.apiBaseUrl = prov.apiBaseUrl || '';
+      dynamicModels = []; // reset
+      renderProviderCards();
+      renderModelList();
+      renderApiKeyStatus(aiConfig);
+
+      // Update Base URL display
+      const baseUrlEl = document.getElementById('settingBaseUrlDisplay');
+      if (baseUrlEl) baseUrlEl.textContent = aiConfig.apiBaseUrl || '—';
+
+      // Auto-fetch models from provider API
+      fetchModels(provId);
+    }
+
+    // ==================== MODEL LIST ====================
+    function renderModelList() {
+      const container = document.getElementById('modelList');
+      const fallbackRow = document.getElementById('modelFallbackRow');
+      const countEl = document.getElementById('modelCount');
+      if (!container) return;
+
+      const currentProvider = aiConfig.provider || '';
+      const currentModel = aiConfig.model || document.getElementById('settingModel')?.value || '';
+      const prov = aiProviders[currentProvider];
+
+      // Count display
+      if (countEl) {
+        countEl.textContent = dynamicModels.length > 0 ? `(${dynamicModels.length})` : '';
+      }
+
+      // If no provider selected
+      if (!prov) {
+        if (fallbackRow) fallbackRow.style.display = '';
+        container.innerHTML = '<div class="model-empty">Pilih provider terlebih dahulu</div>';
+        return;
+      }
+
+      // If dynamic models loaded from API — show them
+      if (dynamicModels.length > 0) {
+        if (fallbackRow) fallbackRow.style.display = 'none';
+        let html = '';
+        dynamicModels.forEach(model => {
+          const modelId = model.id || '';
+          const modelName = model.name || modelId;
+          const isSelected = modelId === currentModel;
+          const ownedBy = model.owned_by || '';
+
+          // Build meta chips
+          let metaHtml = '';
+          if (model.context) {
+            const ctx = model.context >= 1000000 ? (model.context/1000000).toFixed(1)+'M' : model.context >= 1000 ? (model.context/1000).toFixed(0)+'K' : model.context;
+            metaHtml += `<span class="model-meta-chip">${ctx} ctx</span>`;
+          }
+          if (model.pricing) {
+            if (model.pricing.isFree) {
+              metaHtml += `<span class="model-meta-chip free">GRATIS</span>`;
+            } else {
+              const p = model.pricing.prompt;
+              metaHtml += `<span class="model-meta-chip">$${p < 0.01 ? p.toFixed(4) : p.toFixed(2)}/1K</span>`;
+            }
+          }
+          if (ownedBy && ownedBy !== currentProvider) {
+            metaHtml += `<span class="model-meta-chip">${escapeHtml(ownedBy)}</span>`;
+          }
+
+          html += `
+            <div class="model-item${isSelected ? ' selected' : ''}" onclick="selectModel('${escapeHtml(modelId)}')" title="${escapeHtml(modelId)}">
+              <div class="model-item-info">
+                <div class="model-item-name-row">
+                  <span class="model-item-name">${escapeHtml(modelName)}</span>
+                </div>
+                ${metaHtml ? `<div class="model-item-meta">${metaHtml}</div>` : ''}
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+        return;
+      }
+
+      // Fallback: no dynamic models yet — check if API key exists (from env/config)
+      const keyStatus = aiConfig.envKeyStatus || 'missing';
+      if (keyStatus === 'missing' && currentProvider !== 'openrouter') {
+        if (fallbackRow) fallbackRow.style.display = '';
+        const getKeyUrl = prov.apiKeyUrl || '#';
+        const envVarName = aiConfig.envVarName || `${currentProvider.toUpperCase()}_API_KEY`;
+        container.innerHTML = `
+          <div class="model-no-key">
+            Set <code>${escapeHtml(envVarName)}</code> di file .env untuk melihat model<br>
+            <a href="${escapeHtml(getKeyUrl)}" target="_blank" rel="noopener">Dapatkan API Key →</a>
+          </div>
+        `;
+        return;
+      }
+
+      // Loading / waiting state
+      if (fallbackRow) fallbackRow.style.display = 'none';
+      container.innerHTML = '<div class="model-empty">Memuat model...</div>';
+    }
+
+    function fetchModels(providerId) {
+      const btn = document.getElementById('btnRefreshModels');
+      const btnText = document.getElementById('btnRefreshText');
+      if (btn) btn.classList.add('loading');
+      if (btnText) btnText.textContent = 'Loading...';
+
+      // Show loading in model list
+      const container = document.getElementById('modelList');
+      if (container) container.innerHTML = '<div class="model-empty">Memuat model dari provider...</div>';
+
+      socket.emit('fetch_models', { provider: providerId }, (result) => {
+        if (btn) btn.classList.remove('loading');
+        if (btnText) btnText.textContent = 'Refresh';
+
+        if (result && result.success && result.models && result.models.length > 0) {
+          dynamicModels = result.models;
+          showToast(`${result.models.length} model dimuat${result.cached ? ' (cache)' : ''}`);
+        } else if (result && result.error === 'API_KEY_MISSING') {
+          dynamicModels = [];
+          // Will be handled by renderModelList() showing the no-key state
+        } else if (result && !result.success) {
+          dynamicModels = [];
+          showToast('Gagal memuat model: ' + (result.error || '').substring(0, 50));
+        }
+        renderModelList();
+      });
+    }
+
+    function refreshModels() {
+      const providerId = aiConfig.provider;
+      if (!providerId) {
+        showToast('Pilih provider dulu');
+        return;
+      }
+      // Force refresh: bypass cache
+      dynamicModels = [];
+      renderModelList();
+
+      const btn = document.getElementById('btnRefreshModels');
+      const btnText = document.getElementById('btnRefreshText');
+      if (btn) btn.classList.add('loading');
+      if (btnText) btnText.textContent = 'Loading...';
+
+      const container = document.getElementById('modelList');
+      if (container) container.innerHTML = '<div class="model-empty">Memuat ulang model...</div>';
+
+      socket.emit('fetch_models', { provider: providerId, force: true }, (result) => {
+        if (btn) btn.classList.remove('loading');
+        if (btnText) btnText.textContent = 'Refresh';
+
+        if (result && result.success && result.models && result.models.length > 0) {
+          dynamicModels = result.models;
+          showToast(`${result.models.length} model dimuat (fresh)`);
+        } else if (result && result.error === 'API_KEY_MISSING') {
+          dynamicModels = [];
+        } else if (result && !result.success) {
+          dynamicModels = [];
+          showToast('Gagal: ' + (result.error || '').substring(0, 60));
+        }
+        renderModelList();
+      });
+    }
+
+    function selectModel(modelId) {
+      // Update the hidden text input too
+      const modelInput = document.getElementById('settingModel');
+      if (modelInput) modelInput.value = modelId;
+
+      // Save model selection
+      socket.emit('save_ai_config', { model: modelId }, (res) => {
+        if (res && res.success) {
+          showToast('Model: ' + modelId);
+        }
+      });
+
+      // Update local config immediately for responsive UI
+      aiConfig.model = modelId;
+      renderModelList();
+    }
+
+    function updateAutoReplyUI() {
+      const toggleAI = document.getElementById('toggleAI');
+      const autoStatus = document.getElementById('autoReplyStatus');
+      const aiBadge = document.getElementById('connAIBadge');
+      if (aiEnabled) {
+        toggleAI.classList.add('on');
+        autoStatus.textContent = 'AKTIF';
+        autoStatus.classList.remove('off');
+        autoStatus.classList.add('on');
+        aiBadge.textContent = 'AI ON';
+        aiBadge.style.background = 'var(--green-soft)';
+        aiBadge.style.color = 'var(--green)';
+      } else {
+        toggleAI.classList.remove('on');
+        autoStatus.textContent = 'NONAKTIF';
+        autoStatus.classList.remove('on');
+        autoStatus.classList.add('off');
+        aiBadge.textContent = 'AI OFF';
+        aiBadge.style.background = 'var(--red-soft)';
+        aiBadge.style.color = 'var(--red)';
+      }
+    }
+
+    function updateModeUI() {
+      const toggleMode = document.getElementById('toggleMode');
+      const draftStatus = document.getElementById('draftStatus');
+      // Draft = toggle ON, Auto = toggle OFF
+      if (sendMode === 'draft') {
+        toggleMode.classList.add('on');
+        draftStatus.textContent = 'AKTIF';
+        draftStatus.classList.remove('off');
+        draftStatus.classList.add('on');
+      } else {
+        toggleMode.classList.remove('on');
+        draftStatus.textContent = 'NONAKTIF';
+        draftStatus.classList.remove('on');
+        draftStatus.classList.add('off');
+      }
+    }
+
+    // ==================== ACTIONS ====================
+    function toggleAutoReply() {
+      aiEnabled = !aiEnabled;
+      socket.emit('toggle_autoreply', { enabled: aiEnabled });
+      updateAutoReplyUI();
+    }
+
+    function toggleSendMode() {
+      sendMode = sendMode === 'draft' ? 'auto' : 'draft';
+      socket.emit('set_send_mode', { mode: sendMode });
+      updateModeUI();
+    }
+
+    function saveAISetting() {
+      const btn = document.getElementById('btnSaveConfig');
+      const data = {
+        provider: aiConfig.provider || '',
+        model: document.getElementById('settingModel').value,
+        temperature: parseFloat(document.getElementById('settingTemp').value),
+        topP: parseFloat(document.getElementById('settingTopP').value),
+        maxTokens: parseInt(document.getElementById('settingMaxTokens').value),
+        systemPrompt: document.getElementById('settingSystemPrompt').value,
+        triggerPrefix: document.getElementById('settingTrigger').value,
+        // apiKey & apiBaseUrl tidak dikirim — API key dari .env, base URL dari provider registry
+      };
+      socket.emit('save_ai_config', data, (res) => {
+        if (res && res.success) {
+          showToast('Config tersimpan ✓');
+          // Visual feedback on button
+          if (btn) {
+            btn.classList.add('saved');
+            btn.innerHTML = '<svg class="icon"><use href="#fa-check"/></svg> Tersimpan!';
+            setTimeout(() => {
+              btn.classList.remove('saved');
+              btn.innerHTML = '<svg class="icon"><use href="#fa-check"/></svg> Update Config';
+            }, 2000);
+          }
+        } else {
+          showToast('Gagal simpan config ✗');
+        }
+      });
+    }
+
+    // ==================== TIMELINE ====================
+    function getDisplayName(jid, pushName) {
+      if (nameCache[jid]) return nameCache[jid];
+      if (pushName && pushName.trim() && !/^\d+$/.test(pushName.trim())) return pushName;
+      return jid.replace(/@s\.whatsapp\.net|@lid|@g\.us/g, '');
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function faIcon(id) {
+      return '<svg class="icon"><use href="#' + id + '"/></svg>';
+    }
+
+    function addTimelineEvent(msg, skipRender) {
+      const name = getDisplayName(msg.from, msg.pushName);
+      const time = formatTime(msg.timestamp);
+      const text = escapeHtml(msg.text || '');
+
+      let cssClass = 'incoming';
+      let badge = '';
+      let avatarId = 'fa-user';
+
+      if (msg.isMe && !msg.isDraft) {
+        cssClass = 'sent';
+        badge = '<span class="tl-badge bot">BOT</span>';
+        avatarId = 'fa-robot';
+      } else if (msg.isDraft) {
+        cssClass = 'draft';
+        badge = '<span class="tl-badge draft">DRAFT</span>';
+        avatarId = 'fa-eye';
+      } else if (msg.systemType === 'sent') {
+        cssClass = 'sent';
+        badge = '<span class="tl-badge bot">SENT</span>';
+        avatarId = 'fa-check';
+      } else if (msg.systemType === 'draft') {
+        cssClass = 'draft';
+        badge = '<span class="tl-badge draft">DRAFT</span>';
+        avatarId = 'fa-eye';
+      } else if (msg.systemType === 'error') {
+        cssClass = 'error';
+        badge = '<span class="tl-badge fail">FAIL</span>';
+        avatarId = 'fa-exclamation';
+      } else if (msg.systemType === 'system') {
+        cssClass = 'system';
+        avatarId = 'fa-info';
+      }
+
+      const avatarContent = faIcon(avatarId);
+
+      // PP avatar
+      let avatarHtml = `<div class="tl-avatar">${avatarContent}</div>`;
+      if (ppCache[msg.from] && !msg.systemType) {
+        avatarHtml = `<div class="tl-avatar"><img src="${ppCache[msg.from]}" onerror="this.parentElement.innerHTML=faIcon('${avatarId}')"></div>`;
+      }
+
+      const event = {
+        html: `<div class="tl-item ${cssClass}">
+          ${avatarHtml}
+          <div class="tl-content">
+            <div class="tl-header">
+              <span class="tl-name">${escapeHtml(name)}${badge}</span>
+              <span class="tl-time">${time}</span>
+            </div>
+            <div class="tl-text">${text}</div>
+          </div>
+        </div>`,
+        timestamp: msg.timestamp
+      };
+
+      timelineEvents.push(event);
+      if (timelineEvents.length > MAX_TIMELINE) timelineEvents.shift();
+
+      if (!skipRender) renderTimeline();
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById('timeline');
+      if (timelineEvents.length === 0) {
+        container.innerHTML = '<div class="tl-empty">' + faIcon('fa-inbox') + ' Belum ada aktivitas</div>';
+      } else {
+        // Render in reverse so newest on top
+        container.innerHTML = timelineEvents.map(e => e.html).reverse().join('');
+      }
+      document.getElementById('timelineCount').textContent = timelineEvents.length + ' events';
+    }
+
+    // ==================== TOAST ====================
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+        padding:10px 20px;background:var(--bg-card);border:1px solid var(--border);
+        border-radius:10px;color:var(--text);font-size:12px;font-weight:600;
+        z-index:9999;opacity:0;transition:opacity 0.3s;font-family:inherit;
+      `;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.style.opacity = '1');
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2000);
+    }
+
+  </script>
+</body>
+</html>
